@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-hc-red: #ec3750;
+  --color-hc-orange: #ff4d05;
+  --color-hc-yellow: #f7b731;
+  --color-hc-green: #20c997;
+  --color-hc-cyan: #5bc0de;
+  --color-hc-blue: #339af0;
+  --color-hc-purple: #7950f2;
+  --color-hc-pink: #ff6b6b;
+  --color-hc-dark: #111827;
+
+  --font-heading: var(--font-recursive);
+  --font-body: var(--font-hanken);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-hanken), system-ui, sans-serif;
+  color: #111827;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-heading {
+  font-family: var(--font-recursive), system-ui, sans-serif;
+  font-variation-settings: "CASL" 1, "CRSV" 0.5, "MONO" 0;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(236, 55, 80, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(236, 55, 80, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.5s linear infinite;
 }
