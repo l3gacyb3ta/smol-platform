@@ -103,6 +103,13 @@ async function getChannelNames(): Promise<Set<string>> {
   return fetchAllChannelNames()
 }
 
+export async function archiveChannel(channelId: string): Promise<void> {
+  const data = await slackPost('conversations.archive', { channel: channelId })
+  if (!data.ok && data.error !== 'already_archived') {
+    throw new Error(`Slack error: ${data.error}`)
+  }
+}
+
 export async function checkChannelExists(name: string): Promise<boolean> {
   const names = await getChannelNames()
   const exists = names.has(name)
@@ -117,11 +124,6 @@ export async function createChannel(name: string): Promise<{ id: string; name: s
   })
 
   if (!data.ok) {
-    // Channel already exists — look up its ID so we can still return a URL
-    if (data.error === 'name_taken') {
-      const existing = await findChannelByName(name)
-      if (existing) return existing
-    }
     throw new Error(`Slack error: ${data.error}`)
   }
 
@@ -135,18 +137,3 @@ export async function createChannel(name: string): Promise<{ id: string; name: s
   }
 }
 
-async function findChannelByName(name: string): Promise<{ id: string; name: string; url: string } | null> {
-  // Re-fetch with IDs — the name cache doesn't store IDs, so paginate fresh here
-  // This only runs on name_taken errors (rare), not on every check
-  let cursor: string | undefined
-  do {
-    const params: Record<string, string> = { types: 'public_channel', limit: '200' }
-    if (cursor) params.cursor = cursor
-    const data = await slackGet('conversations.list', params)
-    if (!data.ok) return null
-    const found = (data.channels as Array<{ id: string; name: string }>).find(c => c.name === name)
-    if (found) return { id: found.id, name: found.name, url: `https://hackclub.slack.com/archives/${found.id}` }
-    cursor = data.response_metadata?.next_cursor || undefined
-  } while (cursor)
-  return null
-}

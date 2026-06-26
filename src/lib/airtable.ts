@@ -104,3 +104,10 @@ export async function updateProgram(
 export async function deleteProgram(id: string): Promise<void> {
   await table().update(id, { Status: 'deleted' } as FieldSet)
 }
+
+export async function getProgramBySlackChannel(channel: string): Promise<Program | null> {
+  const records = await table()
+    .select({ filterByFormula: `{Slack Channel} = '${channel}'` })
+    .firstPage()
+  return records[0] ? mapRecord(records[0]) : null
+}
