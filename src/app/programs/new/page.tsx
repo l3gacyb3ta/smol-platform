@@ -1,39 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 
 const KEY_COLORS = ['#ec3750', '#5bc0de', '#f7b731', '#20c997', '#7950f2', '#ff6b6b', '#339af0']
-
-type Availability = 'idle' | 'checking' | 'available' | 'taken'
-
-function AvailabilityBadge({ state }: { state: Availability }) {
-  if (state === 'available') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0' }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        Available
-      </span>
-    )
-  }
-  if (state === 'taken') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-        Taken
-      </span>
-    )
-  }
-  if (state === 'checking') {
-    return <span className="text-xs text-gray-400 px-2 py-1">Checking...</span>
-  }
-  return null
-}
 
 export default function NewProgramPage() {
   const router = useRouter()
@@ -48,21 +19,6 @@ export default function NewProgramPage() {
   const [endDate, setEndDate] = useState('')
   const [keyColor, setKeyColor] = useState('#ec3750')
   const [githubUsername, setGithubUsername] = useState('')
-
-  const [subdomainAvailability, setSubdomainAvailability] = useState<Availability>('idle')
-
-  const checkSubdomain = useCallback(async (sub: string) => {
-    if (!sub) return setSubdomainAvailability('idle')
-    setSubdomainAvailability('checking')
-    const res = await fetch(`/api/slack/check?channel=${encodeURIComponent(sub)}`)
-    const data = await res.json()
-    setSubdomainAvailability(data.available ? 'available' : 'taken')
-  }, [])
-
-  useEffect(() => {
-    const t = setTimeout(() => checkSubdomain(subdomain), 500)
-    return () => clearTimeout(t)
-  }, [subdomain, checkSubdomain])
 
   // Auto-fill slug fields from name
   useEffect(() => {
@@ -172,10 +128,7 @@ export default function NewProgramPage() {
                   onChange={e => setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, ''))}
                   required
                 />
-                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.smol.hackclub.com</span>
-                <div className="px-3">
-                  <AvailabilityBadge state={subdomainAvailability} />
-                </div>
+                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.hackclub.com</span>
               </div>
             </div>
 
