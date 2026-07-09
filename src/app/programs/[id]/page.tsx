@@ -133,7 +133,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             <div className="h-1 rounded-full w-24" style={{ backgroundColor: program.keyColor }} />
             <h1
               className="text-hc-dark text-3xl font-bold text-center"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               {program.name}
             </h1>
@@ -166,7 +166,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center justify-between">
               <h2
                 className="text-hc-dark text-lg font-extrabold"
-                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
               >
                 Program Details
               </h2>
@@ -255,7 +255,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
               <div>
                 <h2
                   className="text-hc-dark text-lg font-extrabold"
-                  style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+                  style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
                 >
                   Created Resources
                 </h2>
@@ -298,7 +298,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
           >
             <h3
               className="text-hc-dark text-base font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Danger Zone
             </h3>

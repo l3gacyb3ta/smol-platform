@@ -152,7 +152,7 @@ export default function CreatingPage() {
             <div className="text-4xl">⏳</div>
             <h1
               className="text-hc-dark text-2xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Waiting for approval
             </h1>
@@ -181,7 +181,7 @@ export default function CreatingPage() {
               <div className="text-3xl">⚠️</div>
               <h1
                 className="text-hc-dark text-2xl font-extrabold"
-                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
               >
                 Spin-up hit a snag
               </h1>
@@ -235,7 +235,7 @@ export default function CreatingPage() {
           <div className="flex flex-col items-center gap-3 text-center">
             <h1
               className="text-hc-dark text-2xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Setting up your Smol...
             </h1>

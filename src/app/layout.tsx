@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Recursive, Hanken_Grotesk } from 'next/font/google'
+import { Recursive, Plus_Jakarta_Sans } from 'next/font/google'
 import AuthProvider from '@/components/AuthProvider'
 import './globals.css'
 
@@ -10,10 +10,10 @@ const recursive = Recursive({
   axes: ['CASL', 'CRSV', 'MONO'],
 })
 
-const hanken = Hanken_Grotesk({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-hanken',
-  weight: ['400', '500', '600', '700'],
+  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
 })
 
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${recursive.variable} ${hanken.variable}`}>
+    <html lang="en" className={`${recursive.variable} ${jakarta.variable}`}>
       <body className="min-h-screen flex flex-col">
         <AuthProvider>{children}</AuthProvider>
       </body>

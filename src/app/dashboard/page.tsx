@@ -46,7 +46,7 @@ function ProgramCard({ program }: { program: Program }) {
         <div>
           <h3
             className="text-hc-dark text-2xl font-bold leading-tight"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
           >
             {program.name}
           </h3>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <h1
               className="text-hc-dark text-3xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Smol Programs
             </h1>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
           <div className="text-center py-24">
             <p className="text-gray-400 text-lg mb-4">No programs yet.</p>
             <Link href="/programs/new" className="bg-hc-red text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-red-600 transition-colors">
-              Create your first program →
+              Submit your first program →
             </Link>
           </div>
         ) : (

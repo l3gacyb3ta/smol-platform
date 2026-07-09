@@ -12,7 +12,7 @@
   --color-hc-dark: #111827;
 
   --font-heading: var(--font-recursive);
-  --font-body: var(--font-hanken);
+  --font-body: var(--font-jakarta);
 }
 
 * {
@@ -27,15 +27,26 @@ body {
 }
 
 body {
-  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
   color: #111827;
   background: #ffffff;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a, button {
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+*:focus-visible {
+  outline: 2px solid #ec3750;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .font-heading {
   font-family: var(--font-recursive), system-ui, sans-serif;
-  font-variation-settings: "CASL" 1, "CRSV" 0.5, "MONO" 0;
+  font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
 }
 
 .grid-bg {

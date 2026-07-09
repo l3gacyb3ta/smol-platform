@@ -104,13 +104,13 @@ export default function NewProgramPage() {
           <div className="flex flex-col items-center gap-2 mb-8">
             <span
               className="bg-hc-red text-white text-xs font-bold px-4 py-1.5 rounded-full"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               A You Ship We Ship project
             </span>
             <h1
               className="text-hc-dark text-3xl font-extrabold text-center"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Unified Smol Program Form
             </h1>

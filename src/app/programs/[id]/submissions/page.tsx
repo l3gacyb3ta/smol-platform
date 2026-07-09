@@ -32,7 +32,7 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
             <div className="h-5 w-1 rounded-full" style={{ backgroundColor: program.keyColor }} />
             <h1
               className="text-hc-dark text-2xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Submissions
             </h1>
