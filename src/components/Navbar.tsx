@@ -32,7 +32,7 @@ export default function Navbar({ variant }: NavbarProps) {
           )}
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="bg-hc-red text-white px-4 py-1.5 rounded-full text-base font-semibold hover:bg-red-600 transition-colors cursor-pointer"
+            className="bg-hc-red text-white px-4 py-1.5 rounded-full text-sm font-bold hover:bg-red-600 transition-colors cursor-pointer"
             style={{ boxShadow: '0 0 2.35px rgba(236,55,80,0.71)' }}
           >
             Log Out
@@ -41,8 +41,8 @@ export default function Navbar({ variant }: NavbarProps) {
       ) : (
         <button
           onClick={() => signIn('hackclub', { callbackUrl: '/dashboard' })}
-          className="bg-hc-red text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg hover:bg-red-600 transition-colors cursor-pointer"
-          style={{ fontFamily: 'var(--font-recursive)' }}
+          className="bg-hc-red text-white px-5 py-1.5 rounded-full text-sm font-bold hover:bg-red-600 transition-colors cursor-pointer"
+          style={{ boxShadow: '0 0 2.35px rgba(236,55,80,0.71)' }}
         >
           Log In
         </button>
