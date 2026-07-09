@@ -20,6 +20,21 @@ export default function NewProgramPage() {
   const [keyColor, setKeyColor] = useState('#ec3750')
   const [githubUsername, setGithubUsername] = useState('')
 
+  const [subdomainAvailability, setSubdomainAvailability] = useState<Availability>('idle')
+
+  const checkSubdomain = useCallback(async (sub: string) => {
+    if (!sub) return setSubdomainAvailability('idle')
+    setSubdomainAvailability('checking')
+    const res = await fetch(`/api/slack/check?channel=${encodeURIComponent(sub)}`)
+    const data = await res.json()
+    setSubdomainAvailability(data.available ? 'available' : 'taken')
+  }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => checkSubdomain(subdomain), 500)
+    return () => clearTimeout(t)
+  }, [subdomain, checkSubdomain])
+
   // Auto-fill slug fields from name
   useEffect(() => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -128,7 +143,14 @@ export default function NewProgramPage() {
                   onChange={e => setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, ''))}
                   required
                 />
+<<<<<<< HEAD
                 <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.hackclub.com</span>
+=======
+                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.smol.hackclub.com</span>
+                <div className="px-3">
+                  <AvailabilityBadge state={subdomainAvailability} />
+                </div>
+>>>>>>> worktree-distributed-wishing-noodle
               </div>
             </div>
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProgram, updateProgram } from '@/lib/airtable'
 import { createChannel } from '@/lib/slack'
+import { auth } from '@/auth'
+import { canAccessProgram } from '@/lib/permissions'
 import type { CreationStep } from '@/lib/types'
 
 const GITHUB_HEADERS = {
@@ -25,8 +27,11 @@ type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params
-  const program = await getProgram(id)
+  const [session, program] = await Promise.all([auth(), getProgram(id)])
   if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!canAccessProgram(session?.user?.slackId, program)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   if (program.status === 'pending') {
     return NextResponse.json({ phase: 'waiting' })

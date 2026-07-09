@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { getProgram } from '@/lib/airtable'
@@ -113,6 +113,7 @@ function formatDate(d: string) {
 export default async function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const [program, session] = await Promise.all([getProgram(id), auth()])
+  if (!session) redirect('/')
   if (!program) notFound()
 
   const userIsAdmin = isAdmin(session?.user?.slackId)

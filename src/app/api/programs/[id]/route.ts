@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProgram, updateProgram, deleteProgram } from '@/lib/airtable'
 import { auth } from '@/auth'
-import { canAccessProgram } from '@/lib/permissions'
+import { canAccessProgram, isAdmin } from '@/lib/permissions'
+import type { Session } from 'next-auth'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -11,7 +12,16 @@ async function authorize(id: string) {
   if (!canAccessProgram(session?.user?.slackId, program)) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
-  return { program }
+  return { program, session }
+}
+
+const ADMIN_ONLY_FIELDS = ['status', 'resources', 'errorStep', 'errorMessage', 'creatorSlackId', 'creatorName', 'creatorEmail'] as const
+
+function stripPrivilegedFields(body: Record<string, unknown>, session: Session | null) {
+  if (isAdmin(session?.user?.slackId)) return body
+  const safe = { ...body }
+  for (const field of ADMIN_ONLY_FIELDS) delete safe[field]
+  return safe
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -23,10 +33,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params
-  const { error } = await authorize(id)
+  const { error, session } = await authorize(id)
   if (error) return error
   const body = await req.json()
-  const program = await updateProgram(id, body)
+  const program = await updateProgram(id, stripPrivilegedFields(body, session ?? null))
   return NextResponse.json(program)
 }
 
