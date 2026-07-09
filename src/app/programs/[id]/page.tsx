@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { getProgram } from '@/lib/airtable'
@@ -63,7 +63,7 @@ const RESOURCES: Resource[] = [
   {
     key: 'domain',
     label: 'Domain',
-    getValue: p => `${p.subdomain}.hackclub.com`,
+    getValue: p => `${p.subdomain}.smol.hackclub.com`,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
@@ -113,6 +113,7 @@ function formatDate(d: string) {
 export default async function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const [program, session] = await Promise.all([getProgram(id), auth()])
+  if (!session) redirect('/')
   if (!program) notFound()
 
   const userIsAdmin = isAdmin(session?.user?.slackId)
@@ -133,7 +134,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             <div className="h-1 rounded-full w-24" style={{ backgroundColor: program.keyColor }} />
             <h1
               className="text-hc-dark text-3xl font-bold text-center"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               {program.name}
             </h1>
@@ -166,7 +167,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center justify-between">
               <h2
                 className="text-hc-dark text-lg font-extrabold"
-                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
               >
                 Program Details
               </h2>
@@ -215,9 +216,9 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 {
                   label: 'Subdomain',
                   value: (
-                    <a href={`https://${program.subdomain}.hackclub.com`} target="_blank" rel="noopener noreferrer"
+                    <a href={`https://${program.subdomain}.smol.hackclub.com`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 text-hc-dark font-semibold text-sm hover:text-hc-red">
-                      {program.subdomain}.hackclub.com
+                      {program.subdomain}.smol.hackclub.com
                       <ExternalLinkIcon />
                     </a>
                   ),
@@ -255,7 +256,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
               <div>
                 <h2
                   className="text-hc-dark text-lg font-extrabold"
-                  style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+                  style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
                 >
                   Created Resources
                 </h2>
@@ -298,7 +299,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
           >
             <h3
               className="text-hc-dark text-base font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
+              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
             >
               Danger Zone
             </h3>
