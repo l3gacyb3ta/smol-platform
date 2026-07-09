@@ -47,6 +47,7 @@ export default function NewProgramPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [keyColor, setKeyColor] = useState('#ec3750')
+  const [githubUsername, setGithubUsername] = useState('')
 
   const [subdomainAvailability, setSubdomainAvailability] = useState<Availability>('idle')
 
@@ -78,7 +79,7 @@ export default function NewProgramPage() {
       const res = await fetch('/api/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, slackChannel, subdomain, startDate, endDate, keyColor }),
+        body: JSON.stringify({ name, description, slackChannel, subdomain, startDate, endDate, keyColor, creatorGithubUsername: githubUsername || undefined }),
       })
       if (!res.ok) throw new Error('Failed to create program')
       const program = await res.json()
@@ -171,7 +172,7 @@ export default function NewProgramPage() {
                   onChange={e => setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, ''))}
                   required
                 />
-                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.hackclub.com</span>
+                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.smol.hackclub.com</span>
                 <div className="px-3">
                   <AvailabilityBadge state={subdomainAvailability} />
                 </div>
@@ -213,6 +214,22 @@ export default function NewProgramPage() {
                 onChange={e => setDescription(e.target.value)}
                 required
               />
+            </div>
+
+            {/* GitHub Username */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-700">Your GitHub Username</label>
+              <div className="flex items-center bg-gray-50 border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-hc-red">
+                <span className="px-3 py-3 text-sm text-gray-400 border-r border-gray-200 bg-gray-50 shrink-0">github.com/</span>
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
+                  placeholder="your-username"
+                  value={githubUsername}
+                  onChange={e => setGithubUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+                />
+              </div>
+              <p className="text-xs text-gray-400">You'll be added as an admin to the generated repo.</p>
             </div>
 
             {/* Key Color */}

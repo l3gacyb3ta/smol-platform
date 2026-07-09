@@ -53,7 +53,7 @@ function hackatimeApiUrl(projectUrl: string): string | null {
     // format: /@username/project/project-name
     const m = pathname.match(/\/@([^/]+)\/project\/([^/]+)/)
     if (!m) return null
-    return `https://hackatime.hackclub.com/api/v1/users/${m[1]}/project/${m[2]}`
+    return `https://hackatime.smol.hackclub.com/api/v1/users/${m[1]}/project/${m[2]}`
   } catch {
     return null
   }

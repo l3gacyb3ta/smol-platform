@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import { ProgramCard } from '@/components/ProgramCard'
 import type { Program } from '@/lib/types'
+import DeleteButton from '@/app/programs/[id]/DeleteButton'
 
 function StatusBadge({ status }: { status: Program['status'] }) {
   if (status === 'active') {
@@ -34,68 +36,53 @@ function StatusBadge({ status }: { status: Program['status'] }) {
   )
 }
 
-function ProgramCard({ program }: { program: Program }) {
+function AdminProgramCard({ program, onDeleted }: { program: Program; onDeleted: () => void }) {
   return (
-    <Link
-      href={`/programs/${program.id}`}
-      className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer"
-      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}
-    >
-      <div className="flex flex-col gap-3">
-        <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: program.keyColor }} />
-        <div>
-          <h3
-            className="text-hc-dark text-2xl font-bold leading-tight"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-          >
-            {program.name}
-          </h3>
-          <p className="text-gray-500 text-sm font-medium leading-relaxed mt-1">{program.description}</p>
+    <Link href={`/programs/${program.id}`} className="block hover:-translate-y-0.5 transition-transform cursor-pointer">
+      <ProgramCard program={program} badge={<StatusBadge status={program.status} />}>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: program.keyColor }} />
+            <span className="text-gray-500 text-sm">#{program.slackChannel}</span>
+          </div>
+          <span className="text-gray-500 text-sm">{program.subdomain}.smol.hackclub.com</span>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: program.keyColor }} />
-          <span className="text-gray-500 text-sm">#{program.slackChannel}</span>
-        </div>
-        <span className="text-gray-500 text-sm">{program.subdomain}.hackclub.com</span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <StatusBadge status={program.status} />
-        <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
-          <Link
-            href={`/programs/${program.id}`}
-            className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-            title="Edit"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </Link>
-          <button
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors"
-            style={{ background: '#fee2e2' }}
-            title="Delete"
-            onClick={async (e) => {
-              e.preventDefault()
-              if (confirm(`Delete "${program.name}"? This cannot be undone.`)) {
-                await fetch(`/api/programs/${program.id}`, { method: 'DELETE' })
-                window.location.reload()
+        <div className="flex items-center justify-between">
+          <div />
+          <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
+            <Link
+              href={`/programs/${program.id}`}
+              className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              title="Edit"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </Link>
+            <DeleteButton
+              programId={program.id}
+              programName={program.name}
+              onSuccess={onDeleted}
+              trigger={
+                <button
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors"
+                  style={{ background: '#fee2e2' }}
+                  title="Delete"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
               }
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
-          </button>
+            />
+          </div>
         </div>
-      </div>
+      </ProgramCard>
     </Link>
   )
 }
@@ -129,9 +116,6 @@ export default function DashboardPage() {
             >
               Smol Programs
             </h1>
-            <span className="bg-hc-red text-white text-xs font-bold px-3 py-1.5 rounded-full">
-              A You Ship We Ship project
-            </span>
           </div>
           <Link
             href="/programs/new"
@@ -172,7 +156,11 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {programs.map(program => (
-              <ProgramCard key={program.id} program={program} />
+              <AdminProgramCard
+                key={program.id}
+                program={program}
+                onDeleted={() => setPrograms(prev => prev.filter(p => p.id !== program.id))}
+              />
             ))}
           </div>
         )}

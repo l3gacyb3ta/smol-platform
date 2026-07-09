@@ -167,8 +167,14 @@ export default function CreatingPage() {
   }
 
   if (phase === 'error') {
-    const label = errorStep === 'slack' ? 'Slack channel name' : 'value'
+    const isSlackError = errorStep === 'slack'
     const isNameTaken = errorMessage.includes('name_taken') || errorMessage.includes('already exists')
+    const errorHint = isSlackError && isNameTaken
+      ? `The Slack channel name is already taken. Pick a different one and we'll retry.`
+      : isNameTaken
+      ? `A repo with that name already exists on GitHub. You may need to delete it first, then retry.`
+      : `Something went wrong: ${errorMessage}`
+
     return (
       <div className="min-h-screen flex flex-col grid-bg">
         <Navbar variant="admin" />
@@ -185,11 +191,7 @@ export default function CreatingPage() {
               >
                 Spin-up hit a snag
               </h1>
-              <p className="text-gray-500 text-sm">
-                {isNameTaken
-                  ? `The ${label} is already taken. Pick a different one and we'll retry.`
-                  : `Something went wrong: ${errorMessage}`}
-              </p>
+              <p className="text-gray-500 text-sm">{errorHint}</p>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -197,20 +199,22 @@ export default function CreatingPage() {
             </div>
 
             <form onSubmit={handleRetry} className="flex flex-col gap-3 pt-2 border-t border-gray-100">
-              <label className="text-sm font-semibold text-gray-700">
-                New {label}
-              </label>
-              <input
-                type="text"
-                className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
-                placeholder={errorStep === 'slack' ? 'new-channel-name' : ''}
-                value={fixValue}
-                onChange={e => setFixValue(e.target.value.replace(/[^a-z0-9-]/g, ''))}
-                required
-              />
+              {isSlackError && (
+                <>
+                  <label className="text-sm font-semibold text-gray-700">New Slack channel name</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
+                    placeholder="new-channel-name"
+                    value={fixValue}
+                    onChange={e => setFixValue(e.target.value.replace(/[^a-z0-9-]/g, ''))}
+                    required
+                  />
+                </>
+              )}
               <button
                 type="submit"
-                disabled={retrying || !fixValue}
+                disabled={retrying || (isSlackError && !fixValue)}
                 className="bg-hc-red text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-red-600 disabled:opacity-50 transition-colors"
               >
                 {retrying ? 'Retrying…' : 'Retry spin-up →'}

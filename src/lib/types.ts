@@ -10,6 +10,7 @@ export interface Program {
   endDate: string
   keyColor: string
   status: ProgramStatus
+  template?: string
   resources: {
     slack?: string
     github?: string
@@ -22,6 +23,7 @@ export interface Program {
   creatorSlackId?: string
   creatorName?: string
   creatorEmail?: string
+  creatorGithubUsername?: string
   errorStep?: string | null
   errorMessage?: string | null
 }
@@ -37,6 +39,7 @@ export interface CreateProgramInput {
   creatorSlackId?: string
   creatorName?: string
   creatorEmail?: string
+  creatorGithubUsername?: string
 }
 
 export type StepStatus = 'done' | 'in_progress' | 'pending' | 'error'

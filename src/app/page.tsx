@@ -1,5 +1,9 @@
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
+import { getPrograms } from '@/lib/airtable'
+import { ProgramCard } from '@/components/ProgramCard'
+import type { Program } from '@/lib/types'
+import { auth } from '@/auth'
 
 const FEATURE_CARDS = [
   {
@@ -46,25 +50,105 @@ const FEATURE_CARDS = [
   },
 ]
 
-export default function LandingPage() {
+function formatDate(dateStr: string) {
+  if (!dateStr) return ''
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function ActiveBadge() {
+  return (
+    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+      Active
+    </span>
+  )
+}
+
+function UpcomingBadge() {
+  return (
+    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+      Upcoming
+    </span>
+  )
+}
+
+function PublicProgramCard({ program, variant }: { program: Program; variant: 'active' | 'upcoming' }) {
+  const websiteUrl = `https://${program.subdomain}.smol.hackclub.com`
+  const slackUrl = program.resources.slack
+  const dateLabel = variant === 'active'
+    ? (program.endDate ? `Ends ${formatDate(program.endDate)}` : 'Ongoing')
+    : `Starts ${formatDate(program.startDate)}`
+
+  return (
+    <ProgramCard program={program} badge={variant === 'active' ? <ActiveBadge /> : <UpcomingBadge />}>
+      <div className="text-xs text-gray-400 font-medium">{dateLabel}</div>
+
+      <div className="flex gap-2 flex-wrap">
+        <a
+          href={websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: program.keyColor }}
+        >
+          Website ↗
+        </a>
+        {slackUrl ? (
+          <a
+            href={slackUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            #{program.slackChannel}
+          </a>
+        ) : (
+          <span className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500">
+            #{program.slackChannel}
+          </span>
+        )}
+      </div>
+    </ProgramCard>
+  )
+}
+
+export default async function LandingPage() {
+  const session = await auth()
+  const today = new Date().toISOString().split('T')[0]
+
+  let activePrograms: Program[] = []
+  let upcomingPrograms: Program[] = []
+
+  try {
+    const programs = await getPrograms()
+    activePrograms = programs.filter(p => p.status === 'active')
+    upcomingPrograms = programs.filter(
+      p => p.status === 'accepted' && p.startDate > today
+    )
+  } catch {
+    // silently degrade — programs section just won't render
+  }
+
+  const hasPrograms = activePrograms.length > 0 || upcomingPrograms.length > 0
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar variant="public" />
 
       <main className="flex-1 grid-bg">
         {/* Hero */}
-        <section className="flex flex-col items-center justify-center gap-4 py-20 px-6 text-center min-h-[480px]">
+        <section className="flex flex-col items-center justify-center gap-3 py-10 px-6 text-center">
           <div
             className="bg-hc-red text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg"
             style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
           >
-            A You Ship We Ship project
+            A You Ship We Ship project, run by Arcade at Hack Club
           </div>
 
           <h1
             className="font-heading text-hc-dark leading-none tracking-tighter"
             style={{
-              fontSize: 'clamp(80px, 18vw, 220px)',
+              fontSize: 'clamp(60px, 14vw, 160px)',
               fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0',
               letterSpacing: '-0.03em',
             }}
@@ -78,7 +162,56 @@ export default function LandingPage() {
           >
             Small YSWSs, big fun
           </p>
+
+          {session && (
+            <Link
+              href="/dashboard"
+              className="bg-hc-red text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-red-600 transition-colors"
+              style={{ fontFamily: 'var(--font-recursive)', boxShadow: '0 4px 8px rgba(236,55,80,0.4)' }}
+            >
+              Go to Dashboard →
+            </Link>
+          )}
         </section>
+
+        {/* Active & Upcoming Programs */}
+        {hasPrograms && (
+          <section className="px-6 md:px-16 lg:px-24 pb-16">
+            <div className="max-w-5xl mx-auto flex flex-col gap-12">
+              {activePrograms.length > 0 && (
+                <div>
+                  <h2
+                    className="text-hc-dark text-2xl font-bold mb-6"
+                    style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0.18, "CRSV" 0, "MONO" 0' }}
+                  >
+                    Active Programs
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {activePrograms.map(p => (
+                      <PublicProgramCard key={p.id} program={p} variant="active" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {upcomingPrograms.length > 0 && (
+                <div>
+                  <h2
+                    className="text-hc-dark text-2xl font-bold mb-6"
+                    style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0.18, "CRSV" 0, "MONO" 0' }}
+                  >
+                    Upcoming Programs
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {upcomingPrograms.map(p => (
+                      <PublicProgramCard key={p.id} program={p} variant="upcoming" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Cards section */}
         <section className="px-6 md:px-16 lg:px-24 pb-20">

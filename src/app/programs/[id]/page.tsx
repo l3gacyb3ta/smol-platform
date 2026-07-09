@@ -63,7 +63,7 @@ const RESOURCES: Resource[] = [
   {
     key: 'domain',
     label: 'Domain',
-    getValue: p => `${p.subdomain}.hackclub.com`,
+    getValue: p => `${p.subdomain}.smol.hackclub.com`,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
@@ -215,9 +215,9 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 {
                   label: 'Subdomain',
                   value: (
-                    <a href={`https://${program.subdomain}.hackclub.com`} target="_blank" rel="noopener noreferrer"
+                    <a href={`https://${program.subdomain}.smol.hackclub.com`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 text-hc-dark font-semibold text-sm hover:text-hc-red">
-                      {program.subdomain}.hackclub.com
+                      {program.subdomain}.smol.hackclub.com
                       <ExternalLinkIcon />
                     </a>
                   ),
