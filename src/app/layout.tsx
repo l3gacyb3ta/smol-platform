@@ -7,9 +7,12 @@ import './globals.css'
 // system already has: nothing to download, nothing to wait for on a bad
 // connection, and no flash of unstyled text. See globals.css for the tokens.
 
-const TITLE = 'smol — small build challenges, real rewards'
+// "Small programs", not "small projects" — see the note in opengraph-image.tsx.
+// What's small is the program: a few weeks, one tight theme, one reward chosen
+// for it. Your build can be as ambitious as you like.
+const TITLE = 'smol — small programs, specific rewards'
 const DESCRIPTION =
-  'Tiny You Ship We Ship programs from Hack Club. Ship a small project, and we ship you something you actually want.'
+  'Small You Ship We Ship programs from Hack Club. Each one runs a few weeks, asks for one particular thing, and pays out a reward picked to match it.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

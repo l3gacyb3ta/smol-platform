@@ -162,12 +162,15 @@ export default async function LandingPage() {
 
             <h1 className="masthead-title">smol</h1>
             <hr className="masthead-rule" />
-            <p className="masthead-line">Small build challenges. Real rewards.</p>
+            {/* The programs are what's small, not the projects — see the note in
+                opengraph-image.tsx. This line used to read "small build
+                challenges", which claimed the opposite. */}
+            <p className="masthead-line">Small programs. Specific rewards.</p>
 
             <p>
-              Ship something specific. We ship you something picked for the thing it asked you to
-              build. Free, run by teenagers at Hack
-              Club, and you keep everything you make.
+              Each smol is scrappy and short, asks for one particular thing, and pays out a reward
+              picked to match it — no points, no generic shop. Free, run by teenagers at Hack Club,
+              and you keep everything you make.
             </p>
           </div>
         </div>
