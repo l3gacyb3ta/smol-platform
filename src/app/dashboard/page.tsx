@@ -52,7 +52,7 @@ function AdminProgramCard({ program, onDeleted }: { program: Program; onDeleted:
           <div />
           <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
             <Link
-              href={`/programs/${program.id}`}
+              href={`/programs/${program.id}/edit`}
               className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
               title="Edit"
             >

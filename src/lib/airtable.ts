@@ -116,3 +116,10 @@ export async function getProgramBySlackChannel(channel: string): Promise<Program
     .firstPage()
   return records[0] ? mapRecord(records[0]) : null
 }
+
+export async function getProgramBySubdomain(subdomain: string): Promise<Program | null> {
+  const records = await table()
+    .select({ filterByFormula: `AND({Subdomain} = '${subdomain}', NOT({Status} = 'deleted'))` })
+    .firstPage()
+  return records[0] ? mapRecord(records[0]) : null
+}

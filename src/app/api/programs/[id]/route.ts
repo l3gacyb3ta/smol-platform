@@ -15,12 +15,18 @@ async function authorize(id: string) {
   return { program, session }
 }
 
-const ADMIN_ONLY_FIELDS = ['status', 'resources', 'errorStep', 'errorMessage', 'creatorSlackId', 'creatorName', 'creatorEmail'] as const
+// Allow-list of fields a non-admin creator may edit. Everything else — status,
+// resources, error state, template, and creator identity fields (which feed
+// privileged server-side provisioning) — is admin-only. Using an allow-list
+// avoids re-introducing gaps whenever a new field is added.
+const USER_EDITABLE_FIELDS = ['name', 'description', 'slackChannel', 'subdomain', 'startDate', 'endDate', 'keyColor'] as const
 
 function stripPrivilegedFields(body: Record<string, unknown>, session: Session | null) {
   if (isAdmin(session?.user?.slackId)) return body
-  const safe = { ...body }
-  for (const field of ADMIN_ONLY_FIELDS) delete safe[field]
+  const safe: Record<string, unknown> = {}
+  for (const field of USER_EDITABLE_FIELDS) {
+    if (field in body) safe[field] = body[field]
+  }
   return safe
 }
 

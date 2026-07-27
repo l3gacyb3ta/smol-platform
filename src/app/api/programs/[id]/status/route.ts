@@ -12,11 +12,24 @@ const GITHUB_HEADERS = {
   'Content-Type': 'application/json',
 }
 
-// Steps after GitHub are still stubbed — replace with real calls as you add integrations
+// These values are interpolated into GitHub API paths, so they must be
+// validated to prevent path traversal (e.g. `..`) from redirecting the
+// request to arbitrary repos in the org. Values originate from user input.
+const VALID_TEMPLATES = new Set(['smol-template-sw', 'smol-template-hw'])
+const SUBDOMAIN_RE = /^[a-z0-9-]{1,63}$/
+const GITHUB_USERNAME_RE = /^[a-zA-Z0-9-]{1,39}$/
+
+// DNS and HCB are manual admin tasks (DNS after the Vercel deploy exists, HCB
+// org created by hand). They're "done" once an admin records the resource URL
+// on the program — see the Created Resources card on the program detail page.
+const MANUAL_STEPS = [
+  { id: 'dns', label: 'Setting up DNS',              resource: 'domain' as const },
+  { id: 'hcb', label: 'Creating HCB organization',   resource: 'hcb' as const },
+]
+
+// Airtable (unified database) and Fillout aren't built yet — still simulated.
 const STUB_STEPS = [
-  { id: 'dns',      label: 'Setting up DNS' },
-  { id: 'hcb',      label: 'Creating HCB organization' },
-  { id: 'airtable', label: 'Creating Airtable base' },
+  { id: 'airtable', label: 'Adding to unified database' },
   { id: 'fillout',  label: 'Creating Fillout form' },
 ]
 
@@ -41,6 +54,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const steps: CreationStep[] = [
       { id: 'slack',  label: 'Creating Slack channel',      status: 'done' },
       { id: 'github', label: 'Creating GitHub repository',  status: 'done' },
+      ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'done' as const })),
       ...STUB_STEPS.map(s => ({ ...s, status: 'done' as const })),
     ]
     return NextResponse.json({ phase: 'done', steps })
@@ -60,6 +74,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       steps: [
         { ...slackStep,  status: program.resources.slack   ? 'done' : program.errorStep === 'slack'  ? 'error' : 'pending' },
         { ...githubStep, status: program.resources.github  ? 'done' : program.errorStep === 'github' ? 'error' : 'pending' },
+        ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'pending' as const })),
         ...STUB_STEPS.map(s => ({ ...s, status: 'pending' as const })),
       ],
     })
@@ -106,6 +121,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     githubStep.status = 'in_progress'
     try {
       const template = program.template ?? 'smol-template-sw'
+      if (!VALID_TEMPLATES.has(template)) throw new Error(`Invalid template: ${template}`)
+      if (!SUBDOMAIN_RE.test(program.subdomain)) throw new Error(`Invalid subdomain: ${program.subdomain}`)
       const repoName = `smol-${program.subdomain}`
 
       const createRes = await fetch(`https://api.github.com/repos/hackclub/${template}/generate`, {
@@ -153,12 +170,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
       // Add submitter as admin collaborator
       if (program.creatorGithubUsername) {
-        await fetch(`https://api.github.com/repos/hackclub-smol/${repoName}/collaborators/${program.creatorGithubUsername}`, {
-          method: 'PUT',
-          headers: GITHUB_HEADERS,
-          body: JSON.stringify({ permission: 'admin' }),
-        })
-        // Non-fatal: if this fails the repo still exists, admin can invite manually
+        if (GITHUB_USERNAME_RE.test(program.creatorGithubUsername)) {
+          await fetch(`https://api.github.com/repos/hackclub-smol/${repoName}/collaborators/${program.creatorGithubUsername}`, {
+            method: 'PUT',
+            headers: GITHUB_HEADERS,
+            body: JSON.stringify({ permission: 'admin' }),
+          })
+          // Non-fatal: if this fails the repo still exists, admin can invite manually
+        } else {
+          console.warn('Skipping collaborator invite: invalid GitHub username', program.creatorGithubUsername)
+        }
       }
 
       await updateProgram(id, {
@@ -178,35 +199,40 @@ export async function GET(_req: NextRequest, { params }: Params) {
         steps: [
           slackStep,
           { ...githubStep, status: 'error' },
+          ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'pending' as const })),
           ...STUB_STEPS.map(s => ({ ...s, status: 'pending' as const })),
         ],
       })
     }
   }
 
-  // Steps 3–6: simulated — only start timer once GitHub is done
+  // DNS & HCB: manual admin steps — done once the admin records the resource URL.
+  const manualSteps: CreationStep[] = MANUAL_STEPS.map(s => ({
+    id: s.id,
+    label: s.label,
+    status: program.resources[s.resource] ? 'done' : 'pending',
+  }))
+  const manualDone = manualSteps.every(s => s.status === 'done')
+
+  // Airtable & Fillout: simulated — only start timer once GitHub is done.
   if (!stubStartTimes.has(id)) stubStartTimes.set(id, Date.now())
   const elapsed = Date.now() - stubStartTimes.get(id)!
   const completedStubs = Math.min(Math.floor(elapsed / 2500), STUB_STEPS.length)
-  const allDone = completedStubs >= STUB_STEPS.length
+  const stubsDone = completedStubs >= STUB_STEPS.length
 
   const stubSteps: CreationStep[] = STUB_STEPS.map((s, i) => ({
     ...s,
-    status: i < completedStubs ? 'done' : i === completedStubs && !allDone ? 'in_progress' : 'pending',
+    status: i < completedStubs ? 'done' : i === completedStubs && !stubsDone ? 'in_progress' : 'pending',
   }))
 
-  if (allDone) {
-    stubSteps.forEach(s => { s.status = 'done' })
-    // TODO: mark program active once all real steps are implemented
-    // await updateProgram(id, { status: 'active' })
-    return NextResponse.json({
-      phase: 'done',
-      steps: [slackStep, githubStep, ...stubSteps],
-    })
+  const steps = [slackStep, githubStep, ...manualSteps, ...stubSteps]
+
+  // Program is flipped to 'active' by an Airtable automation based on the
+  // start/end dates, so we don't set status here — 'done' just means every
+  // provisioning step (including the manual admin ones) is complete.
+  if (manualDone && stubsDone) {
+    return NextResponse.json({ phase: 'done', steps })
   }
 
-  return NextResponse.json({
-    phase: 'spinning',
-    steps: [slackStep, githubStep, ...stubSteps],
-  })
+  return NextResponse.json({ phase: 'spinning', steps })
 }

@@ -1,10 +1,44 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 
 const KEY_COLORS = ['#ec3750', '#5bc0de', '#f7b731', '#20c997', '#7950f2', '#ff6b6b', '#339af0']
+
+type Availability = 'idle' | 'checking' | 'available' | 'taken'
+
+function AvailabilityBadge({ state }: { state: Availability }) {
+  if (state === 'idle') return null
+  if (state === 'checking') {
+    return (
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-spin-slow">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        Checking…
+      </span>
+    )
+  }
+  if (state === 'available') {
+    return (
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        Available
+      </span>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-xs font-semibold text-red-500">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+      Taken
+    </span>
+  )
+}
 
 export default function NewProgramPage() {
   const router = useRouter()
@@ -20,12 +54,16 @@ export default function NewProgramPage() {
   const [keyColor, setKeyColor] = useState('#ec3750')
   const [githubUsername, setGithubUsername] = useState('')
 
+  // Once the user edits a slug field by hand, stop auto-filling it from the name.
+  const [channelDirty, setChannelDirty] = useState(false)
+  const [subdomainDirty, setSubdomainDirty] = useState(false)
+
   const [subdomainAvailability, setSubdomainAvailability] = useState<Availability>('idle')
 
   const checkSubdomain = useCallback(async (sub: string) => {
     if (!sub) return setSubdomainAvailability('idle')
     setSubdomainAvailability('checking')
-    const res = await fetch(`/api/slack/check?channel=${encodeURIComponent(sub)}`)
+    const res = await fetch(`/api/programs/check?subdomain=${encodeURIComponent(sub)}`)
     const data = await res.json()
     setSubdomainAvailability(data.available ? 'available' : 'taken')
   }, [])
@@ -35,12 +73,14 @@ export default function NewProgramPage() {
     return () => clearTimeout(t)
   }, [subdomain, checkSubdomain])
 
-  // Auto-fill slug fields from name
-  useEffect(() => {
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    setSlackChannel(slug)
-    setSubdomain(slug)
-  }, [name])
+  // Auto-fill slug fields from the name, but never clobber a field the user has
+  // edited by hand. Derived on change rather than in an effect.
+  function handleNameChange(value: string) {
+    setName(value)
+    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    if (!channelDirty) setSlackChannel(slug)
+    if (!subdomainDirty) setSubdomain(slug)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -114,7 +154,7 @@ export default function NewProgramPage() {
                   className={inputClass}
                   placeholder="e.g. Tea And Biscuits"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={e => handleNameChange(e.target.value)}
                   required
                 />
               </div>
@@ -125,7 +165,7 @@ export default function NewProgramPage() {
                   className={inputClass}
                   placeholder="#tea-and-biscuits"
                   value={slackChannel}
-                  onChange={e => setSlackChannel(e.target.value.replace(/[^a-z0-9-]/g, ''))}
+                  onChange={e => { setChannelDirty(true); setSlackChannel(e.target.value.replace(/[^a-z0-9-]/g, '')) }}
                   required
                 />
               </div>
@@ -140,17 +180,13 @@ export default function NewProgramPage() {
                   className="flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
                   placeholder="tea-and-biscuits"
                   value={subdomain}
-                  onChange={e => setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, ''))}
+                  onChange={e => { setSubdomainDirty(true); setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, '')) }}
                   required
                 />
-<<<<<<< HEAD
-                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.hackclub.com</span>
-=======
                 <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.smol.hackclub.com</span>
                 <div className="px-3">
                   <AvailabilityBadge state={subdomainAvailability} />
                 </div>
->>>>>>> worktree-distributed-wishing-noodle
               </div>
             </div>
 
@@ -204,7 +240,7 @@ export default function NewProgramPage() {
                   onChange={e => setGithubUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
                 />
               </div>
-              <p className="text-xs text-gray-400">You'll be added as an admin to the generated repo.</p>
+              <p className="text-xs text-gray-400">You&apos;ll be added as an admin to the generated repo.</p>
             </div>
 
             {/* Key Color */}

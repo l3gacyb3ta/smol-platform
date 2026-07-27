@@ -8,6 +8,15 @@ import type { Program } from '@/lib/types'
 import DeleteButton from './DeleteButton'
 import AcceptButton from './AcceptButton'
 import ArchiveChannelButton from './ArchiveChannelButton'
+import ResourceLinkForm from './ResourceLinkForm'
+
+// Resources an admin provisions by hand and records the URL for. Entering the
+// URL is what marks the matching DNS/HCB spin-up step done.
+const MANUAL_RESOURCE_KEYS = new Set<keyof Program['resources']>(['domain', 'hcb'])
+const RESOURCE_PLACEHOLDER: Partial<Record<keyof Program['resources'], string>> = {
+  domain: 'https://…',
+  hcb: 'hcb.hackclub.com/…',
+}
 
 function ExternalLinkIcon() {
   return (
@@ -202,16 +211,27 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 { label: 'Program Name', value: program.name },
                 {
                   label: 'Slack Channel',
-                  value: (
-                    <a href={program.resources.slack} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-hc-dark font-semibold text-sm hover:text-hc-red">
-                      <span className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-gray-500">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                  value: (() => {
+                    const inner = (
+                      <>
+                        <span className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-gray-500">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                        </span>
+                        #{program.slackChannel}
+                      </>
+                    )
+                    return program.resources.slack ? (
+                      <a href={program.resources.slack} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-hc-dark font-semibold text-sm hover:text-hc-red">
+                        {inner}
+                        <ExternalLinkIcon />
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-2 text-hc-dark font-semibold text-sm">
+                        {inner}
                       </span>
-                      #{program.slackChannel}
-                      <ExternalLinkIcon />
-                    </a>
-                  ),
+                    )
+                  })(),
                 },
                 {
                   label: 'Subdomain',
@@ -281,6 +301,12 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                       <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
                         <ExternalLinkIcon />
                       </a>
+                    ) : userIsAdmin && MANUAL_RESOURCE_KEYS.has(key) ? (
+                      <ResourceLinkForm
+                        programId={program.id}
+                        resourceKey={key}
+                        placeholder={RESOURCE_PLACEHOLDER[key] ?? 'https://…'}
+                      />
                     ) : (
                       <span className="text-xs text-gray-300 shrink-0">pending</span>
                     )}

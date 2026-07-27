@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import type { CreationStep } from '@/lib/types'
@@ -93,8 +94,6 @@ export default function CreatingPage() {
   const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>
-
     async function poll() {
       const res = await fetch(`/api/programs/${params.id}/status`)
       const data = await res.json()
@@ -117,8 +116,8 @@ export default function CreatingPage() {
       }
     }
 
+    const interval = setInterval(poll, 2000)
     poll()
-    interval = setInterval(poll, 2000)
     return () => clearInterval(interval)
   }, [params.id, router, retryCount])
 
@@ -127,6 +126,7 @@ export default function CreatingPage() {
     setRetrying(true)
     const patch: Record<string, string | null> = { errorStep: null, errorMessage: null }
     if (errorStep === 'slack') patch.slackChannel = fixValue
+    if (errorStep === 'github') patch.subdomain = fixValue
     await fetch(`/api/programs/${params.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -139,6 +139,7 @@ export default function CreatingPage() {
 
   const doneCount = steps.filter(s => s.status === 'done').length
   const total = steps.length
+  const waitingOnAdmin = steps.some(s => (s.id === 'dns' || s.id === 'hcb') && s.status === 'pending')
 
   if (phase === 'waiting') {
     return (
@@ -160,6 +161,13 @@ export default function CreatingPage() {
               Your program is under review. Once a Hack Club admin accepts it, spin-up will begin automatically and this page will update.
             </p>
             <p className="text-gray-400 text-xs mt-2">This page checks for updates every few seconds.</p>
+            <p className="text-gray-400 text-xs max-w-sm">
+              You can safely close this page — nothing is lost. Return to your{' '}
+              <Link href={`/programs/${params.id}`} className="font-semibold text-gray-500 underline hover:text-gray-700">
+                program page
+              </Link>{' '}
+              anytime to pick up where you left off.
+            </p>
           </div>
         </main>
       </div>
@@ -168,12 +176,20 @@ export default function CreatingPage() {
 
   if (phase === 'error') {
     const isSlackError = errorStep === 'slack'
+    const isGithubError = errorStep === 'github'
     const isNameTaken = errorMessage.includes('name_taken') || errorMessage.includes('already exists')
     const errorHint = isSlackError && isNameTaken
-      ? `The Slack channel name is already taken. Pick a different one and we'll retry.`
-      : isNameTaken
-      ? `A repo with that name already exists on GitHub. You may need to delete it first, then retry.`
+      ? `That Slack channel name is already taken. Pick a different one and we'll retry.`
+      : isGithubError && isNameTaken
+      ? `A repo for that subdomain already exists on GitHub. Enter a different subdomain and we'll retry with a fresh repo.`
       : `Something went wrong: ${errorMessage}`
+
+    // Both recoverable errors are fixed by changing a slug and retrying.
+    const fixField = isSlackError
+      ? { label: 'New Slack channel name', placeholder: 'new-channel-name' }
+      : isGithubError
+      ? { label: 'New subdomain', placeholder: 'new-subdomain' }
+      : null
 
     return (
       <div className="min-h-screen flex flex-col grid-bg">
@@ -199,13 +215,13 @@ export default function CreatingPage() {
             </div>
 
             <form onSubmit={handleRetry} className="flex flex-col gap-3 pt-2 border-t border-gray-100">
-              {isSlackError && (
+              {fixField && (
                 <>
-                  <label className="text-sm font-semibold text-gray-700">New Slack channel name</label>
+                  <label className="text-sm font-semibold text-gray-700">{fixField.label}</label>
                   <input
                     type="text"
                     className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
-                    placeholder="new-channel-name"
+                    placeholder={fixField.placeholder}
                     value={fixValue}
                     onChange={e => setFixValue(e.target.value.replace(/[^a-z0-9-]/g, ''))}
                     required
@@ -214,7 +230,7 @@ export default function CreatingPage() {
               )}
               <button
                 type="submit"
-                disabled={retrying || (isSlackError && !fixValue)}
+                disabled={retrying || (!!fixField && !fixValue)}
                 className="bg-hc-red text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-red-600 disabled:opacity-50 transition-colors"
               >
                 {retrying ? 'Retrying…' : 'Retry spin-up →'}
@@ -261,10 +277,28 @@ export default function CreatingPage() {
             </div>
           )}
 
+          {/* Waiting on a manual admin step (DNS / HCB) */}
+          {phase !== 'loading' && waitingOnAdmin && (
+            <p className="text-center text-xs text-amber-600">
+              Some steps are being set up by a smol admin — this can take a little while.
+            </p>
+          )}
+
           {/* Progress */}
           {phase !== 'loading' && (
             <p className="text-center text-xs text-gray-400">
               {doneCount} of {total} steps complete
+            </p>
+          )}
+
+          {/* Safe to leave */}
+          {phase !== 'loading' && (
+            <p className="text-center text-xs text-gray-400">
+              Safe to close — reopen your{' '}
+              <Link href={`/programs/${params.id}`} className="font-semibold text-gray-500 underline hover:text-gray-700">
+                program page
+              </Link>{' '}
+              anytime to check progress.
             </p>
           )}
         </div>
