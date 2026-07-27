@@ -1,40 +1,51 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { SubmissionStatusBadge } from '@/components/StatusBadge'
-import {
-  ChevronRightIcon,
-  ClockIcon,
-  CloseIcon,
-  ExternalLinkIcon,
-  ImagePlaceholderIcon,
-} from '@/components/Icons'
+import Blank from '@/components/Blank'
+import Ledger from '@/components/Ledger'
+import { SubmissionState } from '@/components/StateMark'
 import type { Submission } from '@/lib/airtable-submissions'
+
+/* ---------------------------------------------------------------------------
+   The review queue. Mode: instrument.
+
+   This looks like a tool for flipping approval flags. It is a tool for
+   understanding what got submitted; the flag flip is one click at the end of a
+   long look. So the design question is not "where do the buttons go" but "what
+   does a reviewer need on screen to answer 'is this real'".
+
+   Their questions, and where each one is answered in a row:
+
+     is this real, or a template with the name changed   the screenshot, and the
+                                                         description in full
+     did they put the hours in                           the hour bar, scaled
+                                                         against every other row
+     did they give me enough to check                    the evidence column,
+                                                         which states what is
+                                                         *missing* as well as
+                                                         what is there
+     how does this compare to the last five             it is a table, so: by eye
+
+   What used to be here: a two-column grid of cards, each with a truncated
+   two-line description, an hour count as bare text, and the screenshot behind a
+   click. Comparing two submissions meant scrolling between two cards and holding
+   the first one in your head.
+   --------------------------------------------------------------------------- */
 
 type Filter = 'all' | 'Pending' | 'Accepted' | 'Rejected'
 
-function LinkChip({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-800"
-    >
-      {label}
-      <ExternalLinkIcon size={10} strokeWidth={2.5} />
-    </a>
-  )
-}
+const FILTERS: Array<{ key: Filter; label: string }> = [
+  { key: 'Pending', label: 'Needs review' },
+  { key: 'Accepted', label: 'Approved' },
+  { key: 'Rejected', label: 'Rejected' },
+  { key: 'all', label: 'Everything' },
+]
 
-function ContactRow({ label, value }: { label: string; value?: string }) {
-  if (!value) return null
-  return (
-    <div className="flex gap-2 text-xs">
-      <span className="w-24 shrink-0 text-gray-400">{label}</span>
-      <span className="font-medium text-gray-700">{value}</span>
-    </div>
-  )
+const EMPTY_COPY: Record<Filter, string> = {
+  Pending: 'Nothing waiting on you. Enjoy it.',
+  Accepted: 'Nothing approved yet.',
+  Rejected: 'Nothing rejected — nice.',
+  all: 'No submissions yet. They land here the moment someone ships.',
 }
 
 function hackatimeApiUrl(projectUrl: string): string | null {
@@ -49,49 +60,59 @@ function hackatimeApiUrl(projectUrl: string): string | null {
   }
 }
 
-function useHackatimeHours(projectUrl?: string) {
-  const [hours, setHours] = useState<number | null>(null)
+/**
+ * Hackatime totals for every visible submission, fetched once and held here
+ * rather than in each row.
+ *
+ * That's not tidiness — the bars are scaled against the largest total in the set,
+ * so the scale has to be known in one place or every bar means something
+ * different from its neighbour.
+ */
+function useHackatimeHours(submissions: Submission[]) {
+  const [hours, setHours] = useState<Record<string, number>>({})
+
   useEffect(() => {
-    const apiUrl = projectUrl ? hackatimeApiUrl(projectUrl) : null
-    if (!apiUrl) return
-    fetch(apiUrl)
-      .then(r => r.json())
-      .then(d => {
-        if (typeof d.total_seconds === 'number') setHours(d.total_seconds / 3600)
-      })
-      .catch(() => {})
-  }, [projectUrl])
+    let cancelled = false
+
+    for (const sub of submissions) {
+      const api = sub.hackatimeProject ? hackatimeApiUrl(sub.hackatimeProject) : null
+      if (!api) continue
+      fetch(api)
+        .then(r => r.json())
+        .then((d: { total_seconds?: unknown }) => {
+          const seconds = d.total_seconds
+          if (cancelled || typeof seconds !== 'number') return
+          setHours(prev => ({ ...prev, [sub.id]: seconds / 3600 }))
+        })
+        .catch(() => {
+          // A missing Hackatime project is itself a finding; the row says so.
+        })
+    }
+
+    return () => {
+      cancelled = true
+    }
+    // Keyed on the initial list: the projects a submission points at never change,
+    // and re-running this on every approval would refetch the whole queue.
+  }, [submissions])
+
   return hours
 }
 
-function SubmissionCard({
-  submission,
-  isAdmin,
-  onReview,
-  reviewing,
-}: {
-  submission: Submission
-  isAdmin: boolean
-  onReview: (id: string, action: 'accept' | 'reject', adjustedHours?: number) => void
-  reviewing: boolean
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const [adjusting, setAdjusting] = useState(false)
-  const [adjustedHours, setAdjustedHours] = useState('')
-  const thumb = submission.screenshot?.[0]
-  const isPending = submission.status === 'Pending'
-  const hackatimeHours = useHackatimeHours(submission.hackatimeProject)
+function Evidence({ href, label }: { href?: string; label: string }) {
+  if (!href) {
+    // Absence is stated, not omitted. "No code" is exactly what a reviewer is
+    // looking for, and a gap where a link should be doesn't say it.
+    return <span className="evidence-missing">no {label}</span>
+  }
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {label} ↗
+    </a>
+  )
+}
 
-  const hasContactInfo =
-    isAdmin &&
-    Boolean(
-      submission.email ||
-        submission.phoneNumber ||
-        submission.birthday ||
-        submission.addressLine1 ||
-        submission.city
-    )
-
+function ShippingDetails({ submission }: { submission: Submission }) {
   const address = [
     submission.addressLine1,
     submission.addressLine2,
@@ -103,172 +124,186 @@ function SubmissionCard({
     .filter(Boolean)
     .join(', ')
 
+  const rows: Array<[string, string | undefined]> = [
+    ['Email', submission.email],
+    ['Phone', submission.phoneNumber],
+    ['Birthday', submission.birthday],
+    ['Address', address || undefined],
+  ]
+
+  if (!rows.some(([, value]) => value)) return null
+
+  // A real <details>: works with scripting off, and never opens by accident
+  // while someone is scanning the queue.
   return (
-    <div className="card flex h-full flex-col overflow-hidden">
-      <div className="flex gap-4 p-4">
+    <details className="shipping-details">
+      <summary>shipping details</summary>
+      <table>
+        <tbody>
+          {rows.map(([label, value]) =>
+            value ? (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                <td>{value}</td>
+              </tr>
+            ) : null
+          )}
+        </tbody>
+      </table>
+    </details>
+  )
+}
+
+function SubmissionRow({
+  submission,
+  isAdmin,
+  loggedHours,
+  maxHours,
+  onReview,
+  reviewing,
+}: {
+  submission: Submission
+  isAdmin: boolean
+  loggedHours?: number
+  maxHours: number
+  onReview: (id: string, action: 'accept' | 'reject', adjustedHours?: number) => void
+  reviewing: boolean
+}) {
+  const [adjusting, setAdjusting] = useState(false)
+  const [adjusted, setAdjusted] = useState('')
+
+  const thumb = submission.screenshot?.[0]
+  const isPending = submission.status === 'Pending'
+  const rejected = submission.status === 'Rejected'
+  const pct = (h: number) => Math.min(100, (h / maxHours) * 100)
+
+  return (
+    <tr className={rejected ? 'row-void' : undefined}>
+      <td>
         {thumb ? (
-          <a href={thumb.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+          <a href={thumb.url} target="_blank" rel="noopener noreferrer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={thumb.url}
               alt={`Screenshot of ${submission.firstName}'s project`}
-              className="h-20 w-20 rounded-xl bg-gray-100 object-cover transition-opacity hover:opacity-90"
+              className="shot"
             />
           </a>
         ) : (
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-300">
-            <ImagePlaceholderIcon size={24} />
-          </div>
+          <span className="shot-missing" role="img" aria-label="No screenshot submitted" />
         )}
+      </td>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <span className="text-sm font-bold text-hc-dark">
-                {submission.firstName} {submission.lastName}
-              </span>
-              <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                {submission.slackUsername && (
-                  <span className="text-xs text-gray-400">@{submission.slackUsername}</span>
-                )}
-                {submission.githubUsername && (
-                  <span className="text-xs text-gray-400">github: {submission.githubUsername}</span>
-                )}
-              </div>
-            </div>
-            <SubmissionStatusBadge status={submission.status} />
-          </div>
+      <td>
+        <span className="shipper">
+          {submission.firstName} {submission.lastName}
+        </span>
+        <span className="shipper-handles">
+          {submission.slackUsername ? `@${submission.slackUsername}` : 'no slack handle'}
+          {submission.githubUsername && ` · gh:${submission.githubUsername}`}
+        </span>
+        {isAdmin && <ShippingDetails submission={submission} />}
+      </td>
 
-          {submission.description && (
-            <p className="mb-2 line-clamp-2 text-xs leading-relaxed text-gray-600">
-              {submission.description}
-            </p>
-          )}
+      {/* The description in full. Truncating it to two lines removed the single
+          best signal for "did they actually build this" — so it gets the widest
+          column in the table and is allowed to be as tall as it needs. */}
+      <td>{submission.description || <span className="tally">no description</span>}</td>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {submission.playableUrl && <LinkChip href={submission.playableUrl} label="Live" />}
-            {submission.codeUrl && <LinkChip href={submission.codeUrl} label="Code" />}
-            {submission.hackatimeProject && (
-              <LinkChip href={submission.hackatimeProject} label="Hackatime" />
-            )}
-            {hackatimeHours !== null && (
-              <span className="flex items-center gap-1 text-xs font-semibold text-gray-500">
-                <ClockIcon size={11} strokeWidth={2.5} />
-                {hackatimeHours.toFixed(1)} hrs
-                {submission.adjustedHours !== undefined && (
-                  <span className="font-normal text-gray-400">
-                    → {submission.adjustedHours} counted
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      <td>
+        {loggedHours === undefined ? (
+          <span className="tally">—</span>
+        ) : (
+          <>
+            <span className="hours-bar" aria-hidden="true">
+              <span className="hours-logged" style={{ width: `${pct(loggedHours)}%` }} />
+              {submission.adjustedHours !== undefined && (
+                <span className="hours-counted" style={{ width: `${pct(submission.adjustedHours)}%` }} />
+              )}
+            </span>
+            <span className="ledger-numeric">
+              {loggedHours.toFixed(1)}h logged
+              {submission.adjustedHours !== undefined && ` · ${submission.adjustedHours}h counted`}
+            </span>
+          </>
+        )}
+      </td>
 
-      {hasContactInfo && (
-        <div className="mx-4 mb-3">
-          <button
-            onClick={() => setExpanded(v => !v)}
-            aria-expanded={expanded}
-            className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-600"
-          >
-            <ChevronRightIcon
-              size={10}
-              className={`transition-transform ${expanded ? 'rotate-90' : ''}`}
+      <td className="evidence">
+        <Evidence href={submission.playableUrl} label="live" />
+        <Evidence href={submission.codeUrl} label="code" />
+        <Evidence href={submission.hackatimeProject} label="hackatime" />
+      </td>
+
+      <td>
+        <SubmissionState status={submission.status} adjustedHours={submission.adjustedHours} />
+      </td>
+
+      <td>
+        <span className="review-actions">
+        {!isPending ? null : adjusting ? (
+          <>
+            <Blank
+              label="Hours to count instead"
+              size="count"
+              type="number"
+              min="0"
+              step="0.5"
+              value={adjusted}
+              onChange={e => setAdjusted(e.target.value)}
+              placeholder="hours"
+              autoFocus
             />
-            {expanded ? 'Hide' : 'Show'} shipping details
-          </button>
-
-          {expanded && (
-            <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-amber-100 bg-amber-50 p-3">
-              <ContactRow label="Email" value={submission.email} />
-              <ContactRow label="Phone" value={submission.phoneNumber} />
-              <ContactRow label="Birthday" value={submission.birthday} />
-              <ContactRow label="Address" value={address || undefined} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {isPending && (
-        <div className="mt-auto border-t border-gray-100 px-4 pt-3 pb-4">
-          {adjusting ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="Hours to count"
-                value={adjustedHours}
-                onChange={e => setAdjustedHours(e.target.value)}
-                className="input flex-1 px-3 py-2 text-xs"
-                autoFocus
-              />
-              <button
-                onClick={() => {
-                  const hrs = parseFloat(adjustedHours)
-                  if (!isNaN(hrs)) onReview(submission.id, 'accept', hrs)
-                }}
-                disabled={reviewing || !adjustedHours}
-                className="btn btn-sm bg-hc-green text-white hover:brightness-95"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => {
-                  setAdjusting(false)
-                  setAdjustedHours('')
-                }}
-                className="btn btn-sm btn-ghost"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => onReview(submission.id, 'accept')}
-                disabled={reviewing}
-                className="btn btn-sm flex-1 bg-hc-green text-white hover:brightness-95"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => setAdjusting(true)}
-                disabled={reviewing}
-                className="btn btn-sm btn-secondary flex-1"
-                title="Approve, but count fewer hours than Hackatime logged"
-              >
-                Adjust hours
-              </button>
-              <button
-                onClick={() => onReview(submission.id, 'reject')}
-                disabled={reviewing}
-                className="btn btn-sm flex-1 bg-hc-red text-white hover:brightness-95"
-              >
-                Reject
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            <button
+              onClick={() => {
+                const hrs = parseFloat(adjusted)
+                if (!Number.isNaN(hrs)) onReview(submission.id, 'accept', hrs)
+              }}
+              disabled={reviewing || !adjusted}
+              className="action action-clear"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => {
+                setAdjusting(false)
+                setAdjusted('')
+              }}
+              className="action action-quiet"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => onReview(submission.id, 'accept')}
+              disabled={reviewing}
+              className="action action-clear"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => setAdjusting(true)}
+              disabled={reviewing}
+              className="action"
+              title="Approve, but count fewer hours than Hackatime logged"
+            >
+              Adjust
+            </button>
+            <button
+              onClick={() => onReview(submission.id, 'reject')}
+              disabled={reviewing}
+              className="action action-danger"
+            >
+              Reject
+            </button>
+          </>
+        )}
+        </span>
+      </td>
+    </tr>
   )
-}
-
-const FILTERS: Array<{ key: Filter; label: string }> = [
-  { key: 'Pending', label: 'Needs review' },
-  { key: 'Accepted', label: 'Approved' },
-  { key: 'Rejected', label: 'Rejected' },
-  { key: 'all', label: 'Everything' },
-]
-
-const EMPTY_COPY: Record<Filter, string> = {
-  Pending: 'Nothing waiting on you. Enjoy it.',
-  Accepted: 'No approved submissions yet.',
-  Rejected: 'Nothing rejected — nice.',
-  all: 'No submissions yet. They show up here the moment someone ships.',
 }
 
 type Nudge = { action: 'accept' | 'reject'; slackUsername?: string; firstName: string }
@@ -281,10 +316,13 @@ export default function SubmissionsList({
   isAdmin: boolean
 }) {
   const [submissions, setSubmissions] = useState(initialSubmissions)
+  // Opens on the pending queue: a prediction, not a preference. One click moves it.
   const [filter, setFilter] = useState<Filter>('Pending')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [nudge, setNudge] = useState<Nudge | null>(null)
   const [error, setError] = useState('')
+
+  const hours = useHackatimeHours(initialSubmissions)
 
   async function handleReview(id: string, action: 'accept' | 'reject', adjustedHours?: number) {
     setReviewingId(id)
@@ -298,7 +336,13 @@ export default function SubmissionsList({
       if (!res.ok) throw new Error('Failed')
       const updated = await res.json()
       const sub = submissions.find(s => s.id === id)
-      setSubmissions(prev => prev.map(s => (s.id === id ? { ...s, status: updated.status } : s)))
+      setSubmissions(prev =>
+        prev.map(s =>
+          s.id === id
+            ? { ...s, status: updated.status, ...(adjustedHours !== undefined && { adjustedHours }) }
+            : s
+        )
+      )
       setNudge({
         action,
         slackUsername: sub?.slackUsername,
@@ -326,46 +370,30 @@ export default function SubmissionsList({
         ? submissions.filter(s => s.status === 'Accepted' || s.status === 'Sent to Unified')
         : submissions.filter(s => s.status === filter)
 
+  // The scale every hour bar is drawn against: the biggest total on screen, so
+  // bar lengths are comparable to each other and not to an arbitrary ceiling.
+  const maxHours = Math.max(1, ...visible.map(s => hours[s.id] ?? 0))
+
   return (
-    <div>
-      <div className="mb-5 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1">
+    <>
+      <ul className="queue-tabs">
         {FILTERS.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            aria-pressed={filter === key}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${
-              filter === key
-                ? 'bg-hc-dark text-white'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-            }`}
-          >
-            {label}
-            <span
-              className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-                filter === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-              }`}
-            >
-              {counts[key]}
-            </span>
-          </button>
+          <li key={key}>
+            <button onClick={() => setFilter(key)} aria-pressed={filter === key}>
+              {label} ({counts[key]})
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
 
       {error && (
-        <p role="alert" className="mb-4 text-sm font-semibold text-hc-red">
+        <p role="alert" className="error-note">
           {error}
         </p>
       )}
 
       {nudge && (
-        <div
-          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold ${
-            nudge.action === 'accept'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
-          }`}
-        >
+        <div className={`notice ${nudge.action === 'accept' ? 'notice-clear' : 'notice-attention'}`}>
           <span>
             {nudge.action === 'accept' ? 'Approved. ' : 'Rejected. '}
             {nudge.slackUsername ? (
@@ -375,7 +403,6 @@ export default function SubmissionsList({
                   href={`https://hackclub.slack.com/team/${nudge.slackUsername}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline hover:no-underline"
                 >
                   @{nudge.slackUsername}
                 </a>{' '}
@@ -385,31 +412,65 @@ export default function SubmissionsList({
               <>Let {nudge.firstName} know.</>
             )}
           </span>
-          <button
-            onClick={() => setNudge(null)}
-            aria-label="Dismiss"
-            className="shrink-0 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
-          >
-            <CloseIcon size={14} />
+          <button onClick={() => setNudge(null)} className="action action-quiet">
+            Dismiss
           </button>
         </div>
       )}
 
       {visible.length === 0 ? (
-        <div className="card p-12 text-center text-sm text-gray-500">{EMPTY_COPY[filter]}</div>
+        <p className="empty">{EMPTY_COPY[filter]}</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {visible.map(sub => (
-            <SubmissionCard
-              key={sub.id}
-              submission={sub}
-              isAdmin={isAdmin}
-              onReview={handleReview}
-              reviewing={reviewingId === sub.id}
-            />
-          ))}
-        </div>
+        <>
+          <Ledger label={`${visible.length} submissions`} width="wide">
+            {/* The description gets the most room because it is the strongest
+                signal for "is this real"; the shot column is fixed at the
+                thumbnail's own size. */}
+            <colgroup>
+              <col style={{ width: '76px' }} />
+              {/* Wide enough that the collapsed shipping-details table inside it
+                  can hold a wrapped postal address without looking punished. */}
+              <col style={{ width: '19%' }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Shot</th>
+                <th scope="col">Shipper</th>
+                <th scope="col">What they made</th>
+                <th scope="col">Hours</th>
+                <th scope="col">Evidence</th>
+                <th scope="col">State</th>
+                <th scope="col">
+                  <span className="tally">Review</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(sub => (
+                <SubmissionRow
+                  key={sub.id}
+                  submission={sub}
+                  isAdmin={isAdmin}
+                  loggedHours={hours[sub.id]}
+                  maxHours={maxHours}
+                  onReview={handleReview}
+                  reviewing={reviewingId === sub.id}
+                />
+              ))}
+            </tbody>
+          </Ledger>
+
+          <p className="edition">
+            Hour bars are scaled to {maxHours.toFixed(1)}h, the longest on screen · green marks hours
+            counted after an adjustment · hatched rows are rejected
+          </p>
+        </>
       )}
-    </div>
+    </>
   )
 }

@@ -2,26 +2,8 @@
 
 import { useState } from 'react'
 
-function ArchiveIcon() {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polyline points="21 8 21 21 3 21 3 8" />
-      <rect x="1" y="3" width="22" height="5" />
-      <line x1="10" y1="12" x2="14" y2="12" />
-    </svg>
-  )
-}
-
+/** Archives the program's Slack channel. Confirmed in place, like every other
+ *  irreversible-ish action on this page. */
 export default function ArchiveChannelButton({ programId }: { programId: string }) {
   const [state, setState] = useState<'idle' | 'confirming' | 'loading' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -42,12 +24,12 @@ export default function ArchiveChannelButton({ programId }: { programId: string 
   }
 
   if (state === 'done') {
-    return <span className="badge badge-gray">Channel archived</span>
+    return <span className="state state-void">channel archived</span>
   }
 
   if (state === 'error') {
     return (
-      <span role="alert" className="text-xs font-semibold text-hc-red">
+      <span role="alert" className="error-note">
         {errorMsg}
       </span>
     )
@@ -55,18 +37,14 @@ export default function ArchiveChannelButton({ programId }: { programId: string 
 
   if (state === 'confirming') {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-gray-500">Archive the channel?</span>
-        <button onClick={handleArchive} className="btn btn-sm btn-primary">
+      <span className="action-row">
+        <button onClick={handleArchive} className="action action-danger">
           Yes, archive it
         </button>
-        <button
-          onClick={() => setState('idle')}
-          className="cursor-pointer px-1 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700"
-        >
+        <button onClick={() => setState('idle')} className="action action-quiet">
           Cancel
         </button>
-      </div>
+      </span>
     )
   }
 
@@ -74,9 +52,8 @@ export default function ArchiveChannelButton({ programId }: { programId: string 
     <button
       onClick={() => setState('confirming')}
       disabled={state === 'loading'}
-      className="btn btn-sm btn-secondary"
+      className="action action-danger"
     >
-      <ArchiveIcon />
       Archive channel
     </button>
   )

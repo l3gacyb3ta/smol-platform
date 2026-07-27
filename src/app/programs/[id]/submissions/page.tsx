@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import Navbar from '@/components/Navbar'
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
 import { getSubmissions, stripPII } from '@/lib/airtable-submissions'
 import { isAdmin, canAccessSubmissions } from '@/lib/permissions'
 import { loadProgramForViewer } from '@/lib/program-access'
+import { countdown } from '@/lib/runwindow'
 import SubmissionsList from './SubmissionsList'
 
 export async function generateMetadata({
@@ -34,45 +36,54 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
   const submissions = admin ? allSubmissions : allSubmissions.map(stripPII)
 
   const pendingCount = submissions.filter(s => s.status === 'Pending').length
+  const when = countdown(program.startDate, program.endDate)
 
   return (
-    <div className="grid-bg flex min-h-screen flex-col">
-      <Navbar variant="admin" />
+    <>
+      <SiteHeader />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-        <header className="mb-6">
-          <Link
-            href={`/programs/${id}`}
-            className="text-sm font-semibold text-gray-500 transition-colors hover:text-hc-red"
-          >
-            ← {program.name}
-          </Link>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <div className="h-7 w-1.5 rounded-full" style={{ backgroundColor: program.keyColor }} />
-            <h1 className="font-display text-2xl font-extrabold text-hc-dark">Submissions</h1>
-            {reviewable && (
-              <span className="text-sm font-semibold text-gray-400">
-                {submissions.length} in total
-                {pendingCount > 0 && ` · ${pendingCount} waiting on review`}
-              </span>
-            )}
-          </div>
-        </header>
+      <main className="sheet instrument">
+        <Link href={`/programs/${id}`} className="crumb">
+          ← {program.name}
+        </Link>
+
+        <div className="section-head">
+          <h1>
+            <span
+              className="key-chip"
+              style={{ backgroundColor: program.keyColor }}
+              aria-hidden="true"
+            />
+            Submissions
+          </h1>
+          {reviewable && (
+            <span className="tally">
+              {submissions.length} in total
+              {pendingCount > 0 && ` · ${pendingCount} waiting on you`} · the run {when.label}
+            </span>
+          )}
+        </div>
 
         {reviewable ? (
           <SubmissionsList initialSubmissions={submissions} isAdmin={admin} />
         ) : (
-          <div className="card flex flex-col items-center gap-3 p-12 text-center">
-            <h2 className="font-display text-lg font-bold text-hc-dark">
-              Submissions open once your program is accepted
-            </h2>
-            <p className="max-w-md text-sm leading-relaxed text-gray-500">
-              A Hack Club admin still needs to review this pitch. Once they accept it
-              and spin-up finishes, everything people ship will land here.
+          <div className="empty">
+            <h2>Submissions open once this program is accepted</h2>
+            <p>
+              A Hack Club admin still needs to review the pitch. Once they accept it and spin-up
+              finishes, everything people ship lands here.
             </p>
           </div>
         )}
+
+        {!admin && reviewable && (
+          <p className="edition">
+            Contact and shipping details are stripped for non-admin reviewers.
+          </p>
+        )}
       </main>
-    </div>
+
+      <SiteFooter />
+    </>
   )
 }

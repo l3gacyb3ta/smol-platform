@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Blank from '@/components/Blank'
 import type { Program } from '@/lib/types'
 
 /**
  * Admin-only inline editor for a manually-provisioned resource (DNS domain,
  * HCB org). Recording the URL is what marks the corresponding spin-up step
- * done — there is no separate "done" flag.
+ * done — there is no separate "done" flag, which is why this sits in the state
+ * column of the provisioning table rather than off in a form somewhere.
  */
 export default function ResourceLinkForm({
   programId,
@@ -47,31 +49,24 @@ export default function ResourceLinkForm({
   }
 
   return (
-    <div className="flex shrink-0 flex-col items-end gap-1">
-      <form onSubmit={handleSave} className="flex items-center gap-1.5">
-        <input
-          type="url"
-          required
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder={placeholder}
-          aria-label={`${resourceKey} URL`}
-          aria-invalid={failed}
-          className="input w-36 rounded-lg px-2 py-1 text-xs"
-        />
-        <button
-          type="submit"
-          disabled={saving || !url}
-          className="btn btn-sm btn-primary px-2.5 py-1"
-        >
-          {saving ? '…' : 'Save'}
-        </button>
-      </form>
+    <form onSubmit={handleSave} className="action-row">
+      <Blank
+        label={`${resourceKey} URL`}
+        type="url"
+        required
+        value={url}
+        onChange={e => setUrl(e.target.value)}
+        placeholder={placeholder}
+        aria-invalid={failed}
+      />
+      <button type="submit" disabled={saving || !url} className="action">
+        {saving ? 'Saving…' : 'Record it'}
+      </button>
       {failed && (
-        <span role="alert" className="text-xs font-semibold text-hc-red">
+        <span role="alert" className="error-note">
           Didn&apos;t save — check the field exists in Airtable.
         </span>
       )}
-    </div>
+    </form>
   )
 }

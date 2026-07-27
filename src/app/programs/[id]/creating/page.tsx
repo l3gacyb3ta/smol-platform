@@ -3,72 +3,166 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import Navbar from '@/components/Navbar'
-import { CheckIcon, CloseIcon, SpinnerIcon } from '@/components/Icons'
-import type { CreationStep } from '@/lib/types'
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
+import Blank from '@/components/Blank'
+import { OWNER_LABEL, ownerOfStep } from '@/lib/provisioning'
+import type { CreationStep, StepStatus } from '@/lib/types'
 
-function StepRow({ step }: { step: CreationStep }) {
-  const { status } = step
-  const isDone = status === 'done'
-  const isInProgress = status === 'in_progress'
-  const isError = status === 'error'
+/* ---------------------------------------------------------------------------
+   The spin-up log. Mode: instrument.
 
-  const rowTone = isInProgress
-    ? 'bg-rose-50/70 border-rose-100'
-    : isError
-      ? 'bg-rose-50 border-rose-200'
-      : 'border-transparent'
+   This is a log, so it is set as one: monospace, one line per step, states in a
+   fixed column so the eye runs down it. It used to be a stack of rounded rows
+   with a coloured circle and a pill each.
+
+   The column that matters most is `owner`. Two of these steps are done by a
+   person, and two of them are not really done at all — they advance on a timer
+   while nothing gets created (see the README). A log that reports all six the
+   same way is lying by omission, so each row says who or what it is waiting on.
+   --------------------------------------------------------------------------- */
+
+const STATE_LABEL: Record<StepStatus, { text: string; tone: string }> = {
+  done: { text: 'done', tone: 'state-clear' },
+  in_progress: { text: 'working…', tone: 'state-hold' },
+  pending: { text: 'waiting', tone: '' },
+  error: { text: 'failed', tone: 'state-attention' },
+}
+
+/**
+ * What each step is still waiting on.
+ *
+ * This column used to be headed "Done by" and answered a question nobody had —
+ * it named the actor even for steps that had already finished. "Waiting on" is
+ * the useful reading: it says which unfinished rows will clear themselves and
+ * which are sitting on a person, so you know whether to wait or go chase someone.
+ *
+ * The ownership itself comes from lib/provisioning.ts, which the program page's
+ * provisioning table also reads. That shared list is the point: these two screens
+ * describe the same six things and had drifted, with this one calling the Airtable
+ * and Fillout steps simulated while the other showed them as unrecorded in red.
+ */
+function waitingOn(step: CreationStep): string {
+  if (step.status === 'done') return '—'
+  if (step.status === 'error') return 'a human — see below'
+  return OWNER_LABEL[ownerOfStep(step.id)]
+}
+
+function StepRows({ steps }: { steps: CreationStep[] }) {
+  const doneCount = steps.filter(s => s.status === 'done').length
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${rowTone}`}>
-      <div
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-          isDone
-            ? 'bg-emerald-100 text-emerald-700'
-            : isInProgress
-              ? 'bg-hc-red text-white'
-              : isError
-                ? 'bg-rose-200 text-rose-800'
-                : 'bg-gray-100 text-gray-400'
-        }`}
-      >
-        {isDone && <CheckIcon size={12} />}
-        {isInProgress && <SpinnerIcon size={12} />}
-        {isError && <CloseIcon size={12} />}
-        {status === 'pending' && <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />}
-      </div>
-
-      <span className="flex-1 text-sm font-medium text-hc-dark">{step.label}</span>
-
-      {isDone && <span className="badge badge-green">Done</span>}
-      {isInProgress && (
-        <span className="badge border-transparent bg-hc-red text-white">Working…</span>
-      )}
-      {isError && <span className="badge badge-red">Failed</span>}
-      {status === 'pending' && <span className="badge badge-gray">Waiting</span>}
+    <div className="ledger-scroll" tabIndex={0} role="region" aria-label="Spin-up log">
+      <table className="spinup-log">
+        <colgroup>
+          <col style={{ width: '38%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '44%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Step</th>
+            <th scope="col">State</th>
+            <th scope="col">Waiting on</th>
+          </tr>
+        </thead>
+        <tbody>
+          {steps.map(step => {
+            const state = STATE_LABEL[step.status] ?? STATE_LABEL.pending
+            return (
+              <tr key={step.id}>
+                <td className="spinup-step">{step.label}</td>
+                <td>
+                  <span
+                    className={`state ${state.tone}${
+                      step.status === 'in_progress' ? ' working' : ''
+                    }`}
+                  >
+                    {state.text}
+                  </span>
+                </td>
+                <td className="tally">{waitingOn(step)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+        {/* The total belongs to the log, below its own rule — not floating under
+            the table as a loose bar. */}
+        <tfoot>
+          <tr>
+            <th scope="row">
+              {doneCount} of {steps.length} done
+            </th>
+            <td colSpan={2}>
+              <span className="spinup-total">
+                <span
+                  className="tally-bar"
+                  role="progressbar"
+                  aria-label="Spin-up progress"
+                  aria-valuenow={doneCount}
+                  aria-valuemin={0}
+                  aria-valuemax={steps.length}
+                >
+                  <span
+                    className="tally-fill"
+                    style={{ width: `${(doneCount / steps.length) * 100}%` }}
+                  />
+                </span>
+              </span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   )
 }
 
-function Shell({
-  children,
-  tone = 'neutral',
-}: {
-  children: React.ReactNode
-  tone?: 'neutral' | 'error'
-}) {
+/**
+ * The handover. Shown the moment a repo exists, which is four steps before
+ * spin-up reports done.
+ *
+ * Nothing left in the queue blocks writing the site — DNS only decides when it
+ * goes public — so a page that just said "hang tight" for all six steps was
+ * withholding the one thing the creator could actually get on with.
+ */
+function HeadStart({ repoUrl, dnsPending }: { repoUrl: string; dnsPending: boolean }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copyClone() {
+    try {
+      await navigator.clipboard.writeText(`git clone ${repoUrl}.git`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard blocked or unavailable. The command is right there to select.
+    }
+  }
+
   return (
-    <div className="grid-bg flex min-h-screen flex-col">
-      <Navbar variant="admin" />
-      <main className="flex flex-1 items-start justify-center px-4 py-10 sm:py-16">
-        <div
-          className={`panel w-full max-w-xl px-6 py-10 sm:px-12 ${
-            tone === 'error' ? 'border-rose-200' : ''
-          }`}
-        >
-          {children}
-        </div>
-      </main>
+    <div className="headstart">
+      <h2>Your repo is ready — start building</h2>
+      <p>
+        The site template is generated and you have admin on it. You don&apos;t have to wait for the
+        rest of this page: clone it and start writing.
+      </p>
+
+      <div className="command">
+        <code>git clone {repoUrl}.git</code>
+        <button onClick={copyClone} className="action">
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+
+      <div className="action-row">
+        <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="action action-strong">
+          Open the repo ↗
+        </a>
+        <span className="tally">
+          {dnsPending
+            ? 'Pushing works now. The site goes public once an admin points DNS at it.'
+            : 'Pushing to the default branch deploys the site.'}
+        </span>
+      </div>
     </div>
   )
 }
@@ -85,11 +179,17 @@ export default function CreatingPage() {
   const [fixValue, setFixValue] = useState('')
   const [retrying, setRetrying] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  // Comes back on every poll, non-null from the moment the repo exists.
+  const [repoUrl, setRepoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     async function poll() {
       const res = await fetch(`/api/programs/${params.id}/status`)
       const data = await res.json()
+
+      // Set before the early return: a repo that already exists is still worth
+      // handing over on a page that is otherwise reporting a failure further down.
+      if (typeof data.repoUrl === 'string') setRepoUrl(data.repoUrl)
 
       if (data.phase === 'error') {
         setPhase('error')
@@ -135,167 +235,127 @@ export default function CreatingPage() {
   const waitingOnAdmin = steps.some(
     s => (s.id === 'dns' || s.id === 'hcb') && s.status === 'pending'
   )
+  const dnsPending = steps.some(s => s.id === 'dns' && s.status !== 'done')
 
-  const programLink = (
-    <Link
-      href={`/programs/${params.id}`}
-      className="font-semibold text-gray-500 underline hover:text-hc-red"
-    >
-      program page
-    </Link>
-  )
+  const isSlackError = errorStep === 'slack'
+  const isGithubError = errorStep === 'github'
+  const isNameTaken =
+    errorMessage.includes('name_taken') || errorMessage.includes('already exists')
 
-  if (phase === 'waiting') {
-    return (
-      <Shell>
-        <div className="flex flex-col items-center gap-4 text-center">
-          <span className="text-4xl">⏳</span>
-          <h1 className="font-display text-2xl font-extrabold text-hc-dark">
-            Waiting on review
+  // Both recoverable errors are fixed by changing a slug and retrying.
+  const fixField = isSlackError
+    ? { label: 'New Slack channel name', placeholder: 'new-channel-name' }
+    : isGithubError
+      ? { label: 'New website address', placeholder: 'new-subdomain' }
+      : null
+
+  return (
+    <>
+      <SiteHeader />
+
+      <main className="sheet instrument">
+        <Link href={`/programs/${params.id}`} className="crumb">
+          ← Program page
+        </Link>
+
+        <div className="section-head">
+          <h1>
+            {phase === 'waiting'
+              ? 'Waiting on review'
+              : phase === 'error'
+                ? 'Spin-up stopped'
+                : phase === 'done'
+                  ? 'Spin-up complete'
+                  : 'Spin-up log'}
           </h1>
-          <p className="max-w-sm text-sm leading-relaxed text-gray-500">
-            A Hack Club admin is looking at your pitch. The moment they accept it,
-            spin-up starts and this page updates itself.
-          </p>
-          <p className="max-w-sm text-xs leading-relaxed text-gray-400">
-            Safe to close — nothing is lost. Come back to your {programLink} any time.
-          </p>
+          <span className="tally">
+            {total > 0 ? `${doneCount} of ${total} steps done · polling every 2s` : 'polling'}
+          </span>
         </div>
-      </Shell>
-    )
-  }
 
-  if (phase === 'error') {
-    const isSlackError = errorStep === 'slack'
-    const isGithubError = errorStep === 'github'
-    const isNameTaken =
-      errorMessage.includes('name_taken') || errorMessage.includes('already exists')
-
-    const errorHint =
-      isSlackError && isNameTaken
-        ? 'That Slack channel name is already in use. Pick a different one and we’ll pick up where we left off.'
-        : isGithubError && isNameTaken
-          ? 'A repo with that name already exists on GitHub. Choose a different website address and we’ll retry with a fresh repo.'
-          : `Spin-up stopped with: ${errorMessage}`
-
-    // Both recoverable errors are fixed by changing a slug and retrying.
-    const fixField = isSlackError
-      ? { label: 'New Slack channel name', placeholder: 'new-channel-name' }
-      : isGithubError
-        ? { label: 'New website address', placeholder: 'new-subdomain' }
-        : null
-
-    return (
-      <Shell tone="error">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <span className="text-3xl">⚠️</span>
-            <h1 className="font-display text-2xl font-extrabold text-hc-dark">
-              Spin-up hit a snag
-            </h1>
-            <p className="text-sm leading-relaxed text-gray-500">{errorHint}</p>
+        {phase === 'waiting' && (
+          <div className="empty">
+            <p>
+              A Hack Club admin is looking at this pitch. The moment they accept it, spin-up starts
+              and this page picks it up on its own.
+            </p>
+            <p className="tally">
+              Safe to close — nothing is lost. Come back to the{' '}
+              <Link href={`/programs/${params.id}`}>program page</Link> any time.
+            </p>
           </div>
+        )}
 
-          <div className="flex flex-col gap-1.5">
-            {steps.map(step => (
-              <StepRow key={step.id} step={step} />
-            ))}
+        {phase === 'loading' && (
+          <p className="empty" role="status">
+            <span className="working">Checking progress…</span>
+          </p>
+        )}
+
+        {phase === 'error' && (
+          <div className="notice notice-attention">
+            <span>
+              {isSlackError && isNameTaken
+                ? 'That Slack channel name is already in use. Pick a different one and spin-up picks up where it left off.'
+                : isGithubError && isNameTaken
+                  ? 'A repo with that name already exists on GitHub. Choose a different website address and spin-up retries with a fresh repo.'
+                  : `Spin-up stopped with: ${errorMessage}`}
+            </span>
           </div>
+        )}
 
-          <form onSubmit={handleRetry} className="flex flex-col gap-3 border-t border-gray-100 pt-5">
+        {/* Above the log, not below it: once there is a repo this is the most
+            actionable thing on the page, and the log becomes reference. */}
+        {repoUrl && <HeadStart repoUrl={repoUrl} dnsPending={dnsPending} />}
+
+        {steps.length > 0 && (
+          <>
+            <StepRows steps={steps} />
+            {waitingOnAdmin && (
+              <p className="edition">
+                Two steps are done by a smol admin by hand and can take a while.
+              </p>
+            )}
+          </>
+        )}
+
+        {phase === 'error' && (
+          <form onSubmit={handleRetry} className="form-actions">
             {fixField && (
-              <>
-                <label htmlFor="fix" className="field-label">
-                  {fixField.label}
-                </label>
-                <input
-                  id="fix"
-                  type="text"
-                  className="input"
-                  placeholder={fixField.placeholder}
+              <span>
+                {fixField.label}:{' '}
+                <Blank
+                  label={fixField.label}
+                  size="slug"
                   value={fixValue}
-                  onChange={e =>
-                    setFixValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-                  }
+                  onChange={e => setFixValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  placeholder={fixField.placeholder}
                   required
                 />
-              </>
+              </span>
             )}
             <button
               type="submit"
               disabled={retrying || (!!fixField && !fixValue)}
-              className="btn btn-primary"
+              className="action action-strong"
             >
               {retrying ? 'Retrying…' : 'Retry spin-up'}
             </button>
           </form>
-        </div>
-      </Shell>
-    )
-  }
-
-  return (
-    <Shell>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <h1 className="font-display text-2xl font-extrabold text-hc-dark">
-            {phase === 'done' ? 'Your smol is ready' : 'Setting up your smol'}
-          </h1>
-          <p className="text-sm text-gray-500">
-            {phase === 'done'
-              ? 'Everything is provisioned — taking you to the program now.'
-              : 'Creating everything your program needs. Hang tight.'}
-          </p>
-        </div>
-
-        <hr className="border-gray-100" />
-
-        {phase === 'loading' ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
-            <SpinnerIcon size={14} />
-            Checking progress
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1.5">
-              {steps.map(step => (
-                <StepRow key={step.id} step={step} />
-              ))}
-            </div>
-
-            {total > 0 && (
-              <div className="flex flex-col gap-2">
-                <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100"
-                  role="progressbar"
-                  aria-valuenow={doneCount}
-                  aria-valuemin={0}
-                  aria-valuemax={total}
-                >
-                  <div
-                    className="h-full rounded-full bg-hc-red transition-all duration-500"
-                    style={{ width: `${(doneCount / total) * 100}%` }}
-                  />
-                </div>
-                <p className="text-center text-xs font-semibold text-gray-400">
-                  {doneCount} of {total} steps done
-                </p>
-              </div>
-            )}
-
-            {waitingOnAdmin && (
-              <p className="text-center text-xs text-amber-600">
-                A couple of steps are handled by a smol admin by hand — those can take a
-                while.
-              </p>
-            )}
-
-            <p className="text-center text-xs text-gray-400">
-              Safe to close — reopen your {programLink} any time to check progress.
-            </p>
-          </>
         )}
-      </div>
-    </Shell>
+
+        {(phase === 'spinning' || phase === 'done') && (
+          <p className="tally">
+            {phase === 'done'
+              ? 'Everything recorded — taking you to the program now.'
+              : 'Safe to close.'}{' '}
+            Reopen the <Link href={`/programs/${params.id}`}>program page</Link> any time to check
+            progress.
+          </p>
+        )}
+      </main>
+
+      <SiteFooter />
+    </>
   )
 }

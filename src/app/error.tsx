@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import Wordmark from '@/components/Wordmark'
+import { editionLine } from '@/lib/edition'
 
 export default function ErrorPage({
   error,
@@ -16,31 +17,34 @@ export default function ErrorPage({
   }, [error])
 
   return (
-    <div className="grid-bg hero-glow flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
-      <Link href="/">
+    <main className="sheet sheet-form" style={{ paddingTop: '48px' }}>
+      <Link href="/" className="site-mark">
         <Wordmark />
       </Link>
-      <span className="text-4xl">🧯</span>
-      <div>
-        <h1 className="font-display text-xl font-bold text-hc-dark">
-          Well, that broke
-        </h1>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-500">
-          Something on our end fell over. Retrying usually sorts it — if it
-          doesn&apos;t, shout in the Hack Club Slack.
-        </p>
-        {error.digest && (
-          <p className="mt-3 font-mono text-xs text-gray-400">ref: {error.digest}</p>
-        )}
-      </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <button onClick={() => unstable_retry()} className="btn btn-primary">
+
+      <h1>Well, that broke</h1>
+      <p>
+        Something on our end fell over. Retrying usually sorts it — if it doesn&apos;t, shout in the{' '}
+        <a href="https://hackclub.com/slack/" target="_blank" rel="noopener noreferrer">
+          Hack Club Slack
+        </a>{' '}
+        and quote the reference below.
+      </p>
+
+      <div className="action-row">
+        <button onClick={() => unstable_retry()} className="action action-strong">
           Try again
         </button>
-        <Link href="/" className="btn btn-secondary">
+        <Link href="/" className="action">
           Back to smol
         </Link>
       </div>
-    </div>
+
+      {/* The reference and the build, together — one is useless without the other. */}
+      <p className="edition" style={{ marginTop: '20px' }}>
+        {error.digest ? `REF ${error.digest} · ` : ''}
+        {editionLine()}
+      </p>
+    </main>
   )
 }

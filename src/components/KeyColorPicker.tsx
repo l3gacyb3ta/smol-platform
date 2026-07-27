@@ -19,8 +19,12 @@ function normalize(hex: string) {
 }
 
 /**
- * Swatch row for picking a program's key colour, plus an editable hex field for
- * anything outside the palette. Shared by the create and edit forms.
+ * The program's identity colour, picked by pointing at it.
+ *
+ * A colour lives in a strip of colours, not in a dropdown of names, so the
+ * swatches abut into one band of the palette — the choice is "this one, not that
+ * one", and abutting them is what makes that comparison possible. The hex field
+ * beside it is the escape hatch, not the primary control.
  */
 export default function KeyColorPicker({
   value,
@@ -58,59 +62,36 @@ export default function KeyColorPicker({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <span className="field-label">Key color</span>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-2" role="radiogroup" aria-label="Key color presets">
-          {KEY_COLORS.map(color => {
-            const selected = value.toLowerCase() === color.toLowerCase()
-            return (
-              <button
-                key={color}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={color}
-                title={color}
-                onClick={() => pickSwatch(color)}
-                className="h-8 w-8 cursor-pointer rounded-lg transition-transform hover:scale-110"
-                style={{
-                  backgroundColor: color,
-                  boxShadow: selected ? `0 0 0 3px #fff, 0 0 0 5px ${color}` : undefined,
-                }}
-              />
-            )
-          })}
-        </div>
-
-        <div className="hidden h-8 w-px bg-gray-200 sm:block" />
-
-        <div
-          className={`flex items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 transition-shadow focus-within:border-transparent focus-within:ring-2 ${
-            draftIsValid ? 'border-gray-200 focus-within:ring-hc-red' : 'border-rose-300 focus-within:ring-rose-400'
-          }`}
-        >
-          <span
-            className="h-4 w-4 shrink-0 rounded border border-black/10"
-            style={{ backgroundColor: value }}
+    <span className="action-row">
+      <span className="key-swatches" role="radiogroup" aria-label="Key colour presets">
+        {KEY_COLORS.map(color => (
+          <button
+            key={color}
+            type="button"
+            role="radio"
+            aria-checked={value.toLowerCase() === color.toLowerCase()}
+            aria-label={color}
+            title={color}
+            onClick={() => pickSwatch(color)}
+            className="swatch"
+            style={{ backgroundColor: color }}
           />
-          <input
-            type="text"
-            value={shown}
-            onChange={e => handleHexChange(e.target.value)}
-            onBlur={handleHexBlur}
-            onFocus={e => e.currentTarget.select()}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label="Key color hex code"
-            aria-invalid={!draftIsValid}
-            className="w-20 bg-transparent font-mono text-sm font-medium text-gray-700 uppercase outline-none"
-          />
-        </div>
-      </div>
-      <p className="field-hint">
-        Pick one above, or type any hex code you like.
-      </p>
-    </div>
+        ))}
+      </span>
+
+      <input
+        type="text"
+        value={shown}
+        onChange={e => handleHexChange(e.target.value)}
+        onBlur={handleHexBlur}
+        onFocus={e => e.currentTarget.select()}
+        spellCheck={false}
+        autoComplete="off"
+        aria-label="Key colour hex code"
+        aria-invalid={!draftIsValid}
+        className="swatch-hex"
+        style={{ borderLeft: `6px solid ${draftIsValid ? value : 'var(--attention-mark)'}` }}
+      />
+    </span>
   )
 }

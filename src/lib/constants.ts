@@ -30,3 +30,23 @@ export function programUrl(subdomain: string): string {
 export function programHost(subdomain: string): string {
   return `${subdomain}.${ROOT_DOMAIN}`
 }
+
+/**
+ * The GitHub org every program's repo is generated into, and the repo's name.
+ *
+ * These live here because two places need to agree on them: the spin-up route
+ * that creates the repo, and the pages that display it. They previously didn't —
+ * the program page showed `hackclub-smol/<subdomain>` while spin-up actually
+ * created `smol-<subdomain>`, so the one identifier a creator would try to clone
+ * was wrong.
+ */
+export const REPO_OWNER = 'hackclub-smol'
+
+export function programRepoName(subdomain: string): string {
+  return `smol-${subdomain}`
+}
+
+/** `hackclub-smol/smol-tea-and-biscuits` — what you'd type after `gh repo clone`. */
+export function programRepoSlug(subdomain: string): string {
+  return `${REPO_OWNER}/${programRepoName(subdomain)}`
+}

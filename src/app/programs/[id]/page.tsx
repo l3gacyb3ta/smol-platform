@@ -1,51 +1,55 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import Navbar from '@/components/Navbar'
-import { ProgramStatusBadge } from '@/components/StatusBadge'
-import {
-  BankIcon,
-  DatabaseIcon,
-  ExternalLinkIcon,
-  FormIcon,
-  GitHubIcon,
-  GlobeIcon,
-  PencilIcon,
-  SlackIcon,
-} from '@/components/Icons'
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
+import Ledger from '@/components/Ledger'
+import { ProgramState } from '@/components/StateMark'
 import { loadProgramForViewer } from '@/lib/program-access'
 import { isAdmin } from '@/lib/permissions'
-import { formatDate } from '@/lib/format'
-import { programHost, programUrl } from '@/lib/constants'
+import { formatDate, formatDateRange } from '@/lib/format'
+import { programHost, programRepoSlug, programUrl } from '@/lib/constants'
+import { countdown, daysSince, ageInDays } from '@/lib/runwindow'
+import {
+  PROVISIONING,
+  OWNER_LABEL,
+  RECORDABLE,
+  SIMULATED_COUNT,
+  recordedCount,
+} from '@/lib/provisioning'
 import type { Program } from '@/lib/types'
 import DeleteButton from './DeleteButton'
 import AcceptButton from './AcceptButton'
 import ArchiveChannelButton from './ArchiveChannelButton'
 import ResourceLinkForm from './ResourceLinkForm'
 
-// Resources an admin provisions by hand and records the URL for. Entering the
-// URL is what marks the matching DNS/HCB spin-up step done.
-const MANUAL_RESOURCE_KEYS = new Set<keyof Program['resources']>(['domain', 'hcb'])
+/* ---------------------------------------------------------------------------
+   One program. Mode: instrument.
+
+   The question that brought someone here is almost always "what still isn't
+   provisioned, and is it waiting on a machine or on a person" — so the
+   provisioning table has an owner column, which is the fact the old resource
+   list left out. A row that says "by hand" is not a row that will fix itself.
+   --------------------------------------------------------------------------- */
+
+// What each resource *is*, for the "What" column. Which of them exist, who owns
+// them and what they're called all live in lib/provisioning.ts, so this page and
+// the spin-up log can't drift apart about it again.
+const DESCRIBE: Record<keyof Program['resources'], (p: Program) => string> = {
+  slack: p => `#${p.slackChannel}`,
+  // programRepoSlug, not a hand-built string: spin-up names the repo
+  // `smol-<subdomain>`, so this cell used to print an org path that didn't exist.
+  github: p => programRepoSlug(p.subdomain),
+  domain: p => programHost(p.subdomain),
+  hcb: p => `${p.name} org`,
+  airtable: () => 'program records',
+  fillout: () => 'submission form',
+}
+
 const RESOURCE_PLACEHOLDER: Partial<Record<keyof Program['resources'], string>> = {
   domain: 'https://…',
   hcb: 'hcb.hackclub.com/…',
 }
-
-type Resource = {
-  key: keyof Program['resources']
-  label: string
-  icon: React.ReactNode
-  getValue: (p: Program) => string
-}
-
-const RESOURCES: Resource[] = [
-  { key: 'slack', label: 'Slack', icon: <SlackIcon />, getValue: p => `#${p.slackChannel}` },
-  { key: 'github', label: 'GitHub', icon: <GitHubIcon />, getValue: p => `${p.subdomain} repo` },
-  { key: 'domain', label: 'Domain', icon: <GlobeIcon />, getValue: p => programHost(p.subdomain) },
-  { key: 'hcb', label: 'HCB', icon: <BankIcon />, getValue: p => `${p.name} org` },
-  { key: 'airtable', label: 'Airtable', icon: <DatabaseIcon />, getValue: () => 'Program records' },
-  { key: 'fillout', label: 'Fillout', icon: <FormIcon />, getValue: () => 'Submission form' },
-]
 
 export async function generateMetadata({
   params,
@@ -58,12 +62,12 @@ export async function generateMetadata({
   return { title: allowed && program ? program.name : 'Program' }
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 text-sm">
-      <span className="shrink-0 font-semibold text-gray-500">{label}</span>
-      <span className="text-right font-semibold text-hc-dark">{children}</span>
-    </div>
+    <tr>
+      <th scope="row">{label}</th>
+      <td>{children}</td>
+    </tr>
   )
 }
 
@@ -78,198 +82,259 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
 
   const userIsAdmin = isAdmin(session.user?.slackId)
   const canAccept = userIsAdmin && program.status === 'pending'
-  const spinUpUrl = `/programs/${id}/creating`
+  const when = countdown(program.startDate, program.endDate)
+  const provisioned = recordedCount(program)
 
   return (
-    <div className="grid-bg flex min-h-screen flex-col">
-      <Navbar variant="admin" />
+    <>
+      <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        {/* ------------------------------------------------------------ Header */}
-        <Link
-          href="/dashboard"
-          className="text-sm font-semibold text-gray-500 transition-colors hover:text-hc-red"
-        >
+      <main className="sheet instrument">
+        <Link href="/dashboard" className="crumb">
           ← All programs
         </Link>
 
-        <header className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="h-8 w-1.5 rounded-full" style={{ backgroundColor: program.keyColor }} />
-            <h1 className="font-casual text-3xl font-bold text-hc-dark">{program.name}</h1>
-            <ProgramStatusBadge status={program.status} />
-          </div>
-          <p className="max-w-2xl text-sm leading-relaxed text-gray-500">{program.description}</p>
-
-          {canAccept && (
-            <div className="notice notice-amber">
-              <span>This program is waiting on review. Accepting it kicks off spin-up.</span>
-              <AcceptButton programId={program.id} />
-            </div>
-          )}
-
-          {(program.status === 'accepted' || program.status === 'active') && (
-            <div className="notice notice-blue">
-              <span>
-                {program.status === 'accepted'
-                  ? 'Spin-up is still in progress.'
-                  : 'Spin-up finished — everything is provisioned.'}
-              </span>
-              <Link href={spinUpUrl} className="font-bold underline hover:no-underline">
-                View spin-up log →
-              </Link>
-            </div>
-          )}
-        </header>
-
-        {/* ----------------------------------------------------------- Content */}
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-5">
-          {/* Details */}
-          <section className="card flex flex-col gap-4 p-6 lg:col-span-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-lg font-extrabold text-hc-dark">Program details</h2>
-              <div className="flex items-center gap-2">
-                <Link href={`/programs/${program.id}/submissions`} className="btn btn-primary btn-sm">
-                  <FormIcon size={13} />
-                  Submissions
-                </Link>
-                <Link href={`/programs/${program.id}/edit`} className="btn btn-secondary btn-sm">
-                  <PencilIcon size={13} />
-                  Edit
-                </Link>
-              </div>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              <DetailRow label="Slack channel">
-                {program.resources.slack ? (
-                  <a
-                    href={program.resources.slack}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 hover:text-hc-red"
-                  >
-                    #{program.slackChannel}
-                    <ExternalLinkIcon size={14} className="text-gray-400" />
-                  </a>
-                ) : (
-                  <>#{program.slackChannel}</>
-                )}
-              </DetailRow>
-
-              <DetailRow label="Website">
-                <a
-                  href={programUrl(program.subdomain)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 break-all hover:text-hc-red"
-                >
-                  {programHost(program.subdomain)}
-                  <ExternalLinkIcon size={14} className="shrink-0 text-gray-400" />
-                </a>
-              </DetailRow>
-
-              <DetailRow label="Runs">
-                {formatDate(program.startDate)} → {formatDate(program.endDate)}
-              </DetailRow>
-
-              <DetailRow label="Key color">
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    className="h-4 w-4 rounded"
-                    style={{ backgroundColor: program.keyColor }}
-                  />
-                  {program.keyColor.toUpperCase()}
-                </span>
-              </DetailRow>
-
-              {program.creatorName && (
-                <DetailRow label="Pitched by">
-                  {program.creatorName}
-                  {program.creatorEmail && (
-                    <span className="block text-xs font-medium text-gray-400">
-                      {program.creatorEmail}
-                    </span>
-                  )}
-                </DetailRow>
-              )}
-            </div>
-          </section>
-
-          {/* Resources */}
-          <section className="card flex flex-col gap-4 p-6 lg:col-span-2">
-            <div>
-              <h2 className="font-display text-lg font-extrabold text-hc-dark">Resources</h2>
-              <p className="mt-0.5 text-sm text-gray-500">
-                Everything provisioned for this program.
-              </p>
-            </div>
-
-            <div className="flex flex-col divide-y divide-gray-100">
-              {RESOURCES.map(({ key, label, icon, getValue }) => {
-                const url = program.resources[key]
-                return (
-                  <div key={key} className="flex items-center gap-3 py-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                      {icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-hc-dark">{label}</p>
-                      <p className="truncate text-xs text-gray-500">{getValue(program)}</p>
-                    </div>
-                    {url ? (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 text-gray-400 transition-colors hover:text-hc-red"
-                        aria-label={`Open ${label}`}
-                      >
-                        <ExternalLinkIcon size={15} />
-                      </a>
-                    ) : userIsAdmin && MANUAL_RESOURCE_KEYS.has(key) ? (
-                      <ResourceLinkForm
-                        programId={program.id}
-                        resourceKey={key}
-                        placeholder={RESOURCE_PLACEHOLDER[key] ?? 'https://…'}
-                      />
-                    ) : (
-                      <span className="badge badge-gray shrink-0">pending</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+        <div className="section-head">
+          <h1>
+            <span
+              className="key-chip"
+              style={{ backgroundColor: program.keyColor }}
+              aria-hidden="true"
+            />
+            {program.name}
+          </h1>
+          <ProgramState status={program.status} waitingDays={daysSince(program.createdAt)} />
         </div>
 
-        {/* ------------------------------------------------------- Danger zone */}
-        <section className="mt-8 rounded-2xl border border-rose-200 bg-white p-6">
-          <h2 className="font-display text-base font-extrabold text-hc-dark">Danger zone</h2>
+        <p>{program.description}</p>
+
+        <div className="action-row">
+          <Link href={`/programs/${program.id}/submissions`} className="action action-strong">
+            Submissions
+          </Link>
+          <Link href={`/programs/${program.id}/edit`} className="action">
+            Edit
+          </Link>
+          <Link href={`/programs/${program.id}/creating`} className="action">
+            Spin-up log
+          </Link>
+        </div>
+
+        {canAccept && (
+          <div className="notice notice-attention">
+            <span>
+              This program has been waiting on review for {ageInDays(daysSince(program.createdAt))}.
+              Accepting it starts spin-up immediately.
+            </span>
+            <AcceptButton programId={program.id} />
+          </div>
+        )}
+
+        {/* The other half of the same fact. A pending program used to show a
+            reviewer the accept button and everyone else nothing at all — so if
+            you weren't an admin, the page went quiet about the one thing holding
+            your program up. Same wait, said to the person who is waiting. */}
+        {program.status === 'pending' && !userIsAdmin && (
+          <div className="notice">
+            <span>
+              Waiting on a Hack Club admin to accept it — {ageInDays(daysSince(program.createdAt))}
+              {' '}so far. Nothing gets created until they do, and you can keep editing it meanwhile.
+            </span>
+          </div>
+        )}
+
+        {program.status === 'accepted' && (
+          <div className="notice">
+            <span>
+              Spin-up is still in progress — {provisioned} of {RECORDABLE.length} resources
+              recorded.
+            </span>
+            <Link href={`/programs/${program.id}/creating`}>Watch the log →</Link>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- Record */}
+        <section className="section">
+          <div className="section-head">
+            <h2>The record</h2>
+            <span className="tally">as pitched, and as edited since</span>
+          </div>
+
+          <Ledger label={`${program.name} — the record`} width="narrow">
+            <colgroup>
+              <col style={{ width: '24%' }} />
+              <col style={{ width: '76%' }} />
+            </colgroup>
+            <tbody>
+              <Row label="Runs">
+                <span className="ledger-numeric">
+                  {formatDateRange(program.startDate, program.endDate) || 'open-ended'}
+                </span>{' '}
+                <span className={`countdown${when.imminent ? ' countdown-soon' : ''}`}>
+                  {when.label}
+                </span>
+              </Row>
+
+              <Row label="Website">
+                <a href={programUrl(program.subdomain)} target="_blank" rel="noopener noreferrer">
+                  {programHost(program.subdomain)}
+                </a>
+              </Row>
+
+              <Row label="Slack">
+                {program.resources.slack ? (
+                  <a href={program.resources.slack} target="_blank" rel="noopener noreferrer">
+                    #{program.slackChannel}
+                  </a>
+                ) : (
+                  <code>#{program.slackChannel}</code>
+                )}
+              </Row>
+
+              <Row label="Key colour">
+                <span
+                  className="key-swatch"
+                  style={{ backgroundColor: program.keyColor }}
+                  aria-hidden="true"
+                />
+                <code>{program.keyColor.toUpperCase()}</code>
+              </Row>
+
+              {program.template && (
+                <Row label="Template">
+                  <code>{program.template}</code>
+                </Row>
+              )}
+
+              <Row label="Pitched">
+                {formatDate(program.createdAt)}{' '}
+                <span className="tally">({ageInDays(daysSince(program.createdAt))} ago)</span>
+              </Row>
+
+              {program.creatorName && (
+                <Row label="Pitched by">
+                  {program.creatorName}
+                  {program.creatorEmail && (
+                    <>
+                      {' '}
+                      <code>{program.creatorEmail}</code>
+                    </>
+                  )}
+                  {program.creatorGithubUsername && (
+                    <>
+                      {' '}
+                      <span className="tally">github: {program.creatorGithubUsername}</span>
+                    </>
+                  )}
+                </Row>
+              )}
+            </tbody>
+          </Ledger>
+        </section>
+
+        {/* ------------------------------------------------------- Provisioning */}
+        <section className="section">
+          <div className="section-head">
+            <h2>Provisioning</h2>
+            <span className="tally">
+              {provisioned} of {RECORDABLE.length} recorded · {SIMULATED_COUNT} simulated
+            </span>
+          </div>
+
+          <Ledger label={`${program.name} — provisioning`}>
+            {/* "What" holds repo paths and hostnames, so it gets the room. */}
+            <colgroup>
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '31%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '32%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Resource</th>
+                <th scope="col">What</th>
+                <th scope="col">Owner</th>
+                <th scope="col">State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PROVISIONING.map(({ resource, label, owner }) => {
+                const url = program.resources[resource]
+                // Nothing creates these, so no URL is ever written and the row
+                // can never be "recorded". Hatched, because it is inert: not a
+                // thing anyone can act on for this program.
+                const unbuilt = owner === 'unbuilt'
+
+                return (
+                  <tr key={resource} className={unbuilt ? 'row-void' : undefined}>
+                    <th scope="row">{label}</th>
+                    <td>
+                      <code>{DESCRIBE[resource](program)}</code>
+                    </td>
+                    {/* The fact the old resource list left out: whether an
+                        unfinished row is waiting on a machine, on a person, or on
+                        nobody at all. */}
+                    <td className="tally">{OWNER_LABEL[owner]}</td>
+                    <td>
+                      {unbuilt ? (
+                        <span className="state state-void">simulated</span>
+                      ) : url ? (
+                        <>
+                          <span className="state state-clear">recorded</span>{' '}
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            open ↗
+                          </a>
+                        </>
+                      ) : userIsAdmin && owner === 'human' ? (
+                        <ResourceLinkForm
+                          programId={program.id}
+                          resourceKey={resource}
+                          placeholder={RESOURCE_PLACEHOLDER[resource] ?? 'https://…'}
+                        />
+                      ) : (
+                        <span
+                          className={`state ${owner === 'human' ? 'state-hold' : 'state-attention'}`}
+                        >
+                          {owner === 'human' ? 'waiting on an admin' : 'not yet recorded'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </Ledger>
+        </section>
+
+        {/* --------------------------------------------------------- Ending it */}
+        <section className="section">
+          <div className="section-head">
+            <h2>Ending this program</h2>
+            <span className="tally">both of these are hard to undo</span>
+          </div>
 
           {userIsAdmin && program.resources.slack && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-rose-100 pb-4">
-              <div>
-                <p className="text-sm font-semibold text-hc-dark">Archive the Slack channel</p>
-                <p className="text-xs text-gray-500">
-                  Hides #{program.slackChannel} from the workspace. History is kept.
-                </p>
-              </div>
+            <div className="notice notice-attention">
+              <span>
+                <strong>Archive #{program.slackChannel}.</strong> Hides the channel from the
+                workspace. History is kept and it can be un-archived by hand.
+              </span>
               <ArchiveChannelButton programId={program.id} />
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-hc-dark">Delete this program</p>
-              <p className="text-xs text-gray-500">
-                Removes the program and everything recorded against it. Not reversible.
-              </p>
-            </div>
+          <div className="notice notice-attention">
+            <span>
+              <strong>Delete {program.name}.</strong> Removes the program and everything recorded
+              against it. Nothing outside smol is touched — the Slack channel, repo and HCB org all
+              survive. Not reversible.
+            </span>
             <DeleteButton programId={program.id} programName={program.name} />
           </div>
         </section>
       </main>
-    </div>
+
+      <SiteFooter />
+    </>
   )
 }

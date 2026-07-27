@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProgram, updateProgram } from '@/lib/airtable'
+import { REPO_OWNER, programRepoName } from '@/lib/constants'
 import { createChannel } from '@/lib/slack'
 import { auth } from '@/auth'
 import { canAccessProgram } from '@/lib/permissions'
@@ -58,6 +59,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ phase: 'waiting' })
   }
 
+  // The repo is the one thing a creator can act on, and it exists several steps
+  // before spin-up finishes — so it rides on every response rather than only
+  // being discoverable from the program page once everything is done. Tracked in
+  // a local because `program` is a snapshot: after the repo is created below, the
+  // record in memory is stale and would report null for another two seconds.
+  let repoUrl: string | null = program.resources.github ?? null
+
   if (program.status === 'active') {
     const steps: CreationStep[] = [
       { id: 'slack',  label: SLACK_LABEL,                    status: 'done' },
@@ -65,7 +73,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'done' as const })),
       ...STUB_STEPS.map(s => ({ ...s, status: 'done' as const })),
     ]
-    return NextResponse.json({ phase: 'done', steps })
+    return NextResponse.json({ phase: 'done', steps, repoUrl })
   }
 
   // status === 'accepted' — work through steps
@@ -79,6 +87,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       phase: 'error',
       errorStep: program.errorStep,
       errorMessage: program.errorMessage,
+      repoUrl,
       steps: [
         { ...slackStep,  status: program.resources.slack   ? 'done' : program.errorStep === 'slack'  ? 'error' : 'pending' },
         { ...githubStep, status: program.resources.github  ? 'done' : program.errorStep === 'github' ? 'error' : 'pending' },
@@ -109,6 +118,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         phase: 'error',
         errorStep: 'slack',
         errorMessage: message,
+        repoUrl,
         steps: [
           { ...slackStep, status: 'error' },
           githubStep,
@@ -128,12 +138,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
       const template = program.template ?? 'smol-template-sw'
       if (!VALID_TEMPLATES.has(template)) throw new Error(`Invalid template: ${template}`)
       if (!SUBDOMAIN_RE.test(program.subdomain)) throw new Error(`Invalid subdomain: ${program.subdomain}`)
-      const repoName = `smol-${program.subdomain}`
+      const repoName = programRepoName(program.subdomain)
 
       const createRes = await fetch(`https://api.github.com/repos/hackclub/${template}/generate`, {
         method: 'POST',
         headers: GITHUB_HEADERS,
-        body: JSON.stringify({ owner: 'hackclub-smol', name: repoName, private: false }),
+        body: JSON.stringify({ owner: REPO_OWNER, name: repoName, private: false }),
       })
 
       if (!createRes.ok) {
@@ -148,7 +158,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       let templateReady = false
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 2000))
-        const commitsRes = await fetch(`https://api.github.com/repos/hackclub-smol/${repoName}/commits`, {
+        const commitsRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${repoName}/commits`, {
           headers: GITHUB_HEADERS,
         })
         if (commitsRes.ok) {
@@ -160,7 +170,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
       // Write smol.json on top of the initialized template
       const configContent = JSON.stringify({ project: program.slackChannel }, null, 2)
-      const contentRes = await fetch(`https://api.github.com/repos/hackclub-smol/${repoName}/contents/smol.json`, {
+      const contentRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${repoName}/contents/smol.json`, {
         method: 'PUT',
         headers: GITHUB_HEADERS,
         body: JSON.stringify({
@@ -176,7 +186,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       // Add submitter as admin collaborator
       if (program.creatorGithubUsername) {
         if (GITHUB_USERNAME_RE.test(program.creatorGithubUsername)) {
-          await fetch(`https://api.github.com/repos/hackclub-smol/${repoName}/collaborators/${program.creatorGithubUsername}`, {
+          await fetch(`https://api.github.com/repos/${REPO_OWNER}/${repoName}/collaborators/${program.creatorGithubUsername}`, {
             method: 'PUT',
             headers: GITHUB_HEADERS,
             body: JSON.stringify({ permission: 'admin' }),
@@ -192,6 +202,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         errorStep: null,
         errorMessage: null,
       })
+      repoUrl = repo.html_url
       githubStep.status = 'done'
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -201,6 +212,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         phase: 'error',
         errorStep: 'github',
         errorMessage: message,
+        repoUrl,
         steps: [
           slackStep,
           { ...githubStep, status: 'error' },
@@ -236,8 +248,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // start/end dates, so we don't set status here — 'done' just means every
   // provisioning step (including the manual admin ones) is complete.
   if (manualDone && stubsDone) {
-    return NextResponse.json({ phase: 'done', steps })
+    return NextResponse.json({ phase: 'done', steps, repoUrl })
   }
 
-  return NextResponse.json({ phase: 'spinning', steps })
+  return NextResponse.json({ phase: 'spinning', steps, repoUrl })
 }

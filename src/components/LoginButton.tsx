@@ -2,10 +2,10 @@
 
 import { signIn } from 'next-auth/react'
 
-/** Kicks off Hack Club OAuth. Used for calls-to-action outside the navbar. */
+/** Kicks off Hack Club OAuth. Used for calls-to-action outside the site header. */
 export default function LoginButton({
   children,
-  className = 'btn btn-primary btn-lg',
+  className = 'action action-strong',
   callbackUrl = '/dashboard',
 }: {
   children: React.ReactNode

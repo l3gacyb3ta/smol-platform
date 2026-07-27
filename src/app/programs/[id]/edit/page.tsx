@@ -1,8 +1,10 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import Navbar from '@/components/Navbar'
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
 import { loadProgramForViewer } from '@/lib/program-access'
+import { FORM_REVISION } from '@/lib/edition'
 import EditProgramForm from './EditProgramForm'
 
 export async function generateMetadata({
@@ -24,33 +26,32 @@ export default async function EditProgramPage({ params }: { params: Promise<{ id
   if (!program || !allowed) notFound()
 
   return (
-    <div className="grid-bg flex min-h-screen flex-col">
-      <Navbar variant="admin" />
+    <>
+      <SiteHeader />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-        <Link
-          href={`/programs/${program.id}`}
-          className="text-sm font-semibold text-gray-500 transition-colors hover:text-hc-red"
-        >
-          ← Back to {program.name}
+      <main className="sheet sheet-form">
+        <Link href={`/programs/${program.id}`} className="crumb">
+          ← {program.name}
         </Link>
 
-        <div className="panel mt-4 px-6 py-10 sm:px-12">
-          <div className="mb-8 flex flex-col gap-1.5">
-            <h1 className="font-display text-2xl font-extrabold text-hc-dark sm:text-3xl">
-              Edit {program.name}
-            </h1>
-            <p className="text-sm text-gray-500">
-              Changes here don&apos;t touch the program&apos;s status or any resource
-              already provisioned for it.
-            </p>
-          </div>
-
-          <hr className="mb-8 border-gray-100" />
-
-          <EditProgramForm program={program} />
+        <div className="section-head">
+          <h1>Edit {program.name}</h1>
+          <span className="tally">the record, not the resources</span>
         </div>
+
+        <p>
+          Changes here don&apos;t touch the program&apos;s status or anything already provisioned for
+          it.
+        </p>
+
+        <EditProgramForm program={program} />
+
+        <p className="edition" style={{ marginTop: '16px' }}>
+          SMOL FORM 2 · AMENDMENT · {FORM_REVISION}
+        </p>
       </main>
-    </div>
+
+      <SiteFooter />
+    </>
   )
 }

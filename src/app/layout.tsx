@@ -1,22 +1,11 @@
 import type { Metadata, Viewport } from 'next'
-import { Recursive, Plus_Jakarta_Sans } from 'next/font/google'
 import AuthProvider from '@/components/AuthProvider'
 import { SITE_URL } from '@/lib/constants'
 import './globals.css'
 
-const recursive = Recursive({
-  subsets: ['latin'],
-  variable: '--font-recursive',
-  display: 'swap',
-  axes: ['CASL', 'CRSV', 'MONO'],
-})
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-jakarta',
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-})
+// No webfonts, on purpose. Body text is set in whatever sans the reader's
+// system already has: nothing to download, nothing to wait for on a bad
+// connection, and no flash of unstyled text. See globals.css for the tokens.
 
 const TITLE = 'smol — small build challenges, real rewards'
 const DESCRIPTION =
@@ -51,8 +40,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${recursive.variable} ${jakarta.variable}`}>
-      <body className="flex min-h-screen flex-col">
+    <html lang="en">
+      <body>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

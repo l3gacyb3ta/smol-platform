@@ -1,308 +1,1415 @@
-@import "tailwindcss";
+/* ===========================================================================
+   smol platform stylesheet
+   SMOL FORM 1 · REV 2026-07 · PREVIOUS EDITION IS OBSOLETE
 
-@theme {
-  /* Hack Club palette */
-  --color-hc-red: #ec3750;
-  --color-hc-red-dark: #d92642;
-  --color-hc-orange: #ff4d05;
-  --color-hc-yellow: #f7b731;
-  --color-hc-green: #20c997;
-  --color-hc-cyan: #5bc0de;
-  --color-hc-blue: #339af0;
-  --color-hc-purple: #7950f2;
-  --color-hc-pink: #ff6b6b;
-  --color-hc-dark: #111827;
-  --color-hc-muted: #6b7280;
+   One sheet, hand written, no framework. Every class is a noun from the
+   problem domain — programs, runs, submissions, shippers, spin-up steps. If a
+   name describes a shape instead of a thing, it does not belong here.
 
-  --font-heading: var(--font-recursive);
-  --font-body: var(--font-jakarta);
+   Two compositions share these tokens:
+     placard    — the public homepage. Lands in four seconds.
+     instrument — everything behind the login. Dense, tabular, worked in.
 
-  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px rgba(17, 24, 39, 0.05);
-  --shadow-card-hover: 0 2px 4px rgba(17, 24, 39, 0.05), 0 12px 28px rgba(17, 24, 39, 0.09);
-  --shadow-panel: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 32px rgba(17, 24, 39, 0.08);
-  --shadow-modal: 0 24px 48px rgba(17, 24, 39, 0.22);
-  --shadow-red: 0 2px 6px rgba(236, 55, 80, 0.28);
-  --shadow-red-hover: 0 4px 14px rgba(236, 55, 80, 0.36);
+   Rules that are not negotiable, recorded so they survive editing:
+     no box-shadow anywhere · no border-radius · no gradient as a fill
+     no colour that does not name a category · links are always underlined
+     hover is instant, 0ms · body type is 16px/1.5 in the system stack
+   =========================================================================== */
+
+:root {
+  /* --- paper and ink ---------------------------------------------------- */
+  --paper: #ffffff;
+  --ink: #111111;
+  --ink-muted: #666666;
+  --rule-color: #d6d6d6;
+  --rule-faint: #ebebeb;
+  --rule: 1px;
+
+  /* --- the legend ------------------------------------------------------
+     Three hues. Each names a category and nothing else. Two values per hue:
+     the -mark value is for fills and glyphs, the plain value is ink-safe.
+
+       attention  a human has to act — awaiting review, failed, destructive
+       clear      resolved and fine — done, approved, live
+       hold       parked on purpose — provisioned by hand, not an error
+
+     A fourth colour channel exists, but it is data rather than palette: each
+     program carries its own key colour, used only as an identity rule at the
+     start of its row. It is never a fill and never means a state.
+     -------------------------------------------------------------------- */
+  --attention: #cf1f38;
+  --attention-mark: #ec3750;
+  --clear: #0f7a5e;
+  --clear-mark: #20c997;
+  --hold: #8a6100;
+  --hold-mark: #f7b731;
+
+  /* --- type ------------------------------------------------------------- */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --size-base: 16px;
+  --size-small: 14px;
+  --leading: 1.5;
+  --leading-tight: 1.2;
+
+  /* --- measure and rhythm ---------------------------------------------- */
+  --measure-prose: 62ch;
+  --measure-sheet: 1000px;
+  --measure-form: 44rem;
+  --pad: 20px;
+  --pad-cell: 2px 6px;
+  --gap-section: 40px;
+  --radius: 0;
+
+  /* --- texture as a data channel ---------------------------------------
+     Where a default design would reach for a fifth grey or a second hue,
+     reach for one of these. Hard stops only; these are patterns, not
+     gradients.
+     -------------------------------------------------------------------- */
+  --hatch: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    rgba(17, 17, 17, 0.08) 4px 5px
+  );
+  --hatch-paper: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    rgba(255, 255, 255, 0.16) 4px 5px
+  );
+  /* Denser and darker than --hatch: this one has to read as a torn edge in a
+     9px strip, marking a table that has more to the side. See .ledger-scroll. */
+  --hatch-edge: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    rgba(17, 17, 17, 0.32) 3px 4px
+  );
+  --crosshatch: repeating-linear-gradient(
+      0deg,
+      transparent 0 7px,
+      rgba(17, 17, 17, 0.05) 7px 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 7px,
+      rgba(17, 17, 17, 0.05) 7px 8px
+    );
 }
 
-* {
+/* ===========================================================================
+   Reset and base
+   =========================================================================== */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html,
+html {
+  background: var(--paper);
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font: var(--size-base) / var(--leading) var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+main {
+  flex: 1;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--leading-tight);
+  margin: 0 0 0.1em; /* yes, 0.1em. This is the tightness. Leave it. */
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 28px;
+}
+h2 {
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+h3 {
+  font-size: 16px;
+}
+
+p {
+  margin: 0 0 0.75em;
+  max-width: var(--measure-prose);
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+ul,
+ol {
+  margin: 0;
   padding: 0;
-  min-height: 100%;
 }
 
-body {
-  font-family: var(--font-jakarta), system-ui, sans-serif;
-  color: var(--color-hc-dark);
-  background: #fdfdfd;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+a {
+  color: inherit;
+  text-decoration: underline;
 }
 
-*:focus-visible {
-  outline: 2px solid var(--color-hc-red);
+/* The house hover: an inverted solid block, no transition. Reads as a terminal
+   selection, and it is the only hover state in the whole sheet. */
+a:hover {
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--attention-mark);
+  outline-offset: 1px;
+  border-radius: var(--radius);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+hr {
+  border: 0;
+  border-top: var(--rule) solid var(--rule-color);
+  margin: var(--pad) 0;
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+}
+
+/* ===========================================================================
+   The sheet — the page column both compositions sit in
+   =========================================================================== */
+
+.sheet {
+  width: 100%;
+  max-width: var(--measure-sheet);
+  margin: 0 auto;
+  padding: 0 var(--pad);
+}
+
+.sheet-form {
+  max-width: var(--measure-form);
+}
+
+/* An instrument declines to be a phone site rather than degrading into one:
+   nothing collapses into cards, nothing gets hidden, the tables stay tables.
+
+   This used to carry `min-width: 860px`, which panned the whole page on a narrow
+   screen. Now that each ledger scrolls inside its own box, that produced two
+   scrollbars for one problem — so the page reflows normally, everything that
+   isn't a table fits, and the tables scroll where they stand. Same refusal to
+   pretend, less collateral. */
+.instrument {
+  padding-top: var(--pad);
+  padding-bottom: var(--gap-section);
+}
+
+.section {
+  margin-top: var(--gap-section);
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: var(--rule) solid var(--ink);
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+}
+
+/* Small letterspaced caps carrying metadata, counts and legends. */
+.tally {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  color: var(--ink-muted);
+}
+
+/* The document states its own edition. Cheap, charming, and the clearest tell
+   that a person who cared made the thing. */
+.edition {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ===========================================================================
+   Site chrome
+   =========================================================================== */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px var(--pad);
+  border-bottom: 2px solid var(--ink);
+  padding: 10px var(--pad);
+}
+
+.site-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.site-mark:hover {
+  background: none;
+  color: inherit;
+}
+
+.site-mark:hover .wordmark {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.site-mark img {
+  height: 34px;
+  width: auto;
+}
+
+.wordmark {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+/* Which role you are signed in as.
+   A keyline box, not a hue: "admin" and "organizer" are not states, so they get
+   no colour from the legend — the word does the work, as everywhere else. */
+.role {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: var(--rule) solid var(--rule-color);
+  padding: 0 5px;
+  color: var(--ink-muted);
+}
+
+.site-mark:hover .role {
+  border-color: var(--ink);
+}
+
+/* Wraps, because a long display name plus two actions overflows a phone. */
+.site-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  font-size: var(--size-small);
+}
+
+.site-footer {
+  border-top: 2px solid var(--ink);
+  margin-top: var(--gap-section);
+  padding: var(--pad) 0 24px;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  list-style: none;
+  font-size: var(--size-small);
+  margin-bottom: 12px;
+}
+
+.crumb {
+  display: inline-block;
+  font-size: var(--size-small);
+  margin-bottom: 10px;
+}
+
+/* ===========================================================================
+   Masthead — placard only.
+
+   Three colours flat: attention red, ink, paper. Structure is nested keyline
+   frames; the large colour field is broken up with a crosshatch rather than a
+   gradient. The rule lives inside the type block, not around it.
+   =========================================================================== */
+
+.masthead {
+  background-color: var(--attention-mark);
+  background-image: var(--hatch-paper);
+  color: var(--paper);
+  border-bottom: 2px solid var(--ink);
+}
+
+.masthead-frame {
+  margin: auto;
+  padding: 22px var(--pad) 26px;
+  max-width: var(--measure-sheet);
+}
+
+.masthead-strap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: var(--rule) solid var(--paper);
+  padding-bottom: 8px;
+}
+
+.masthead-title {
+  font-size: clamp(72px, 17vw, 150px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  margin: 14px 0 0;
+}
+
+/* The separator sits inside the type block, between the wordmark and the
+   strapline, which is what makes it read as a placard rather than a hero. */
+.masthead-rule {
+  border: 0;
+  border-top: 4px solid var(--paper);
+  margin: 10px 0;
+  max-width: 340px;
+}
+
+.masthead-line {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+  max-width: none;
+}
+
+.masthead p {
+  max-width: 46ch;
+}
+
+.masthead a {
+  color: inherit;
+}
+
+.masthead a:hover {
+  background: var(--paper);
+  color: var(--attention);
+}
+
+/* ===========================================================================
+   Ledgers — every table of records in the app
+   =========================================================================== */
+
+.ledger {
+  width: 100%;
+  /* Fixed, not auto.
+     Auto layout lets the longest cell in a column set that column's width, so a
+     verbose pitch or one long hostname reshapes the whole table and squeezes the
+     dates into two ragged lines. Fixed layout means every table declares its own
+     column budget in a <colgroup> and keeps it whatever the records say — which
+     is what makes a page of forty rows scannable. Adding a column to a table
+     means re-dividing its colgroup; that is the intended cost. */
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--size-small);
+  text-align: left;
+  /* Nothing may ever spill out of its cell. Long identifiers — hostnames, repo
+     paths, channel names — break rather than overhang the rule. */
+  overflow-wrap: break-word;
+}
+
+.ledger th,
+.ledger td {
+  padding: 4px 8px;
+  border-bottom: var(--rule) solid var(--rule-faint);
+  vertical-align: top;
+}
+
+.ledger thead th {
+  border-bottom: var(--rule) solid var(--ink);
+  font-size: var(--size-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ledger tbody tr:last-child td {
+  border-bottom: var(--rule) solid var(--ink);
+}
+
+/* Digits that line up in a column have to line up: tabular figures, so the
+   hour counts and dates form real columns instead of drifting. */
+.ledger-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   The scroll container every ledger sits in.
+
+   Two jobs. First, the page body must never scroll sideways, so a table too wide
+   for the sheet scrolls inside its own box instead of dragging the whole layout
+   with it. Second — and this is the part that is usually missing — it has to be
+   visible that there is more to see.
+
+   The marker is four background layers and no script. The two `local` covers
+   scroll with the content; the two `scroll` markers are pinned to the container.
+   So a hatched edge shows up on exactly the side that has content off-screen,
+   and disappears when you reach that end. No shadow, no fade, no JS.
+
+   The covers are flat paper. A single-colour `repeating-linear-gradient` is the
+   only way to get a solid colour into a background *layer*, which is what
+   `background-attachment` needs — nothing here renders as a gradient.
+   --------------------------------------------------------------------------- */
+
+.ledger-scroll {
+  overflow-x: auto;
+  background-image: repeating-linear-gradient(var(--paper) 0 100%),
+    repeating-linear-gradient(var(--paper) 0 100%), var(--hatch-edge),
+    var(--hatch-edge);
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-repeat: no-repeat;
+  background-size: 26px 100%, 26px 100%, 9px 100%, 9px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* A scrollable region needs a keyboard path, so the container is focusable and
+   announces itself. The markup passes an aria-label naming the table. */
+.ledger-scroll:focus-visible {
   outline-offset: 2px;
-  border-radius: 4px;
+}
+
+/* Below this the columns stop being legible and it is better to scroll than to
+   squint. Each ledger declares the width its own colgroup needs. */
+.ledger-scroll > .ledger {
+  min-width: 720px;
+}
+
+.ledger-scroll > .ledger-narrow {
+  min-width: 420px;
+}
+
+.ledger-scroll > .ledger-wide {
+  min-width: 860px;
+}
+
+/* A row whose record is closed and needs nothing: rejected, archived, deleted.
+   Marked with texture rather than a fourth hue, so it survives a photocopy and
+   never competes with the states that do want attention. */
+.row-void {
+  background-image: var(--hatch);
+  color: var(--ink-muted);
+}
+
+/* ===========================================================================
+   States — the legend, applied
+
+   The word always comes first and carries the meaning on its own. Colour and
+   texture are redundant encodings sitting on top of it.
+   =========================================================================== */
+
+/* Deliberately wrappable: `in review · 3 days` is longer than the column it
+   lives in on a narrow instrument, and wrapping after the separator reads fine.
+   The left rule stays whole either way, because it is on the box not the line. */
+.state {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  border-left: 3px solid var(--ink-muted);
+  padding-left: 6px;
+}
+
+.state-clear {
+  border-left-color: var(--clear-mark);
+  color: var(--clear);
+}
+
+.state-attention {
+  border-left-color: var(--attention-mark);
+  color: var(--attention);
+}
+
+.state-hold {
+  border-left-color: var(--hold-mark);
+  color: var(--hold);
+}
+
+.state-void {
+  border-left-color: var(--ink-muted);
+  color: var(--ink-muted);
+}
+
+/* ===========================================================================
+   Programs
+   =========================================================================== */
+
+/* The program's own key colour, as an identity rule at the head of its row.
+   Identity, never state — which is why it is a 4px rule and never a fill. */
+.ledger td.program-key {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.ledger th.program-key {
+  padding: 0;
+}
+
+/* The same mark inline, for a page title or a table cell about one program. */
+.key-chip {
+  display: inline-block;
+  width: 5px;
+  height: 0.9em;
+  margin-right: 8px;
+  vertical-align: baseline;
+}
+
+.key-swatch {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: var(--rule) solid var(--ink);
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+.program-name {
+  font-weight: 700;
+  font-size: var(--size-base);
+  /* Program names are short but arbitrary, and a two-word name wrapping is far
+     better than a name pushing the pitch columns off their budget. */
+  line-height: 1.25;
+}
+
+.program-pitch {
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Stacked cell contents.
+
+   NOT `display: flex` on the `<td>`. A table cell set to flex stops being a
+   table cell — the table wraps it in an anonymous one, and the td's own border
+   then draws around the flex box at its content height instead of stretching to
+   the row. The visible symptom is a bottom border floating above the rest of the
+   row's, which is what this used to do.
+
+   So the cell stays a cell and its children stack as blocks. `fit-content` is
+   the bonus: the inverted hover block hugs the link text rather than spanning
+   the whole column, which is what flex's default stretch was doing.
+   --------------------------------------------------------------------------- */
+.program-links {
+  font-family: var(--font-mono);
+}
+
+.program-links > * {
+  display: block;
+  width: fit-content;
+}
+
+/* --- the shared time axis -------------------------------------------------
+   Every program on one horizontal date scale with today marked, so duration,
+   overlap, gaps and "what's next" are all preattentive. The bars are ornament:
+   each row states its dates and its countdown as literal text alongside.
+   ------------------------------------------------------------------------ */
+
+/* The axis and the bars are sized by their column in the colgroup, not by a
+   min-width here — a min-width on a cell is ignored under fixed layout and was
+   quietly doing nothing. */
+.axis {
+  position: relative;
+  height: 1.4em;
+  /* The last tick label would otherwise overhang the column's right edge. */
+  overflow: hidden;
+}
+
+.axis-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: var(--rule) solid var(--rule-color);
+  padding-left: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.run {
+  position: relative;
+  height: 1.5em;
+}
+
+.run-bar {
+  position: absolute;
+  top: 0.25em;
+  height: 0.85em;
+  min-width: 2px;
+  background-color: var(--ink);
+  border: var(--rule) solid var(--ink);
+}
+
+/* A run that has not started yet reads as hatched rather than solid — the
+   fill fraction is the datum, no second hue involved. */
+.run-bar-future {
+  background-color: var(--paper);
+  background-image: var(--hatch);
+}
+
+.today-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -5px;
+  border-left: var(--rule) dashed var(--attention-mark);
+}
+
+.countdown {
+  display: block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-soon {
+  color: var(--attention);
+}
+
+/* ===========================================================================
+   Submissions
+   =========================================================================== */
+
+.shot {
+  display: block;
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border: var(--rule) solid var(--rule-color);
+}
+
+/* No screenshot is itself a finding, so it is drawn rather than left blank. */
+.shot-missing {
+  display: block;
+  width: 60px;
+  height: 60px;
+  border: var(--rule) dashed var(--rule-color);
+  background-image: var(--hatch);
+}
+
+.shipper {
+  display: block;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.shipper-handles {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--ink-muted);
+  display: block;
+}
+
+/* --- hours ---------------------------------------------------------------
+   Scaled to the largest total in the visible set, so magnitude is comparable
+   across rows by eye. An adjustment draws as a shorter bar inside the logged
+   one; the gap is the adjustment.
+   ---------------------------------------------------------------------- */
+
+.hours-bar {
+  position: relative;
+  height: 0.8em;
+  border: var(--rule) solid var(--ink);
+  background-image: var(--hatch);
+}
+
+.hours-logged {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink);
+}
+
+.hours-counted {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--clear-mark);
+  border-right: var(--rule) solid var(--ink);
+}
+
+/* Also a cell, so also not a flex container — see .program-links above. */
+.evidence {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.evidence > * {
+  display: block;
+  width: fit-content;
+}
+
+/* Absent evidence is stated, not omitted — "no code" is the datum a reviewer
+   is looking for. */
+.evidence-missing {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+
+/* This one genuinely wants a gap between wrapping buttons, so it is a span
+   *inside* the cell rather than the cell itself — a flexed `<td>` would pull its
+   border off the row. */
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* PII stays collapsed behind a real <details>, so it works with scripting off
+   and is never revealed by accident while scanning. */
+.shipping-details summary {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  cursor: pointer;
+}
+
+/* This is a table inside a table cell, so it needs its own fixed layout — left
+   on auto it sizes to its longest value and an address pushes straight out of
+   the column it lives in. Labels get a narrow fixed column; values wrap. */
+.shipping-details table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-top: 4px;
+  border: var(--rule) solid var(--hold-mark);
+  overflow-wrap: break-word;
+}
+
+.shipping-details th,
+.shipping-details td {
+  padding: var(--pad-cell);
+  border: var(--rule) solid var(--rule-faint);
+  font-size: var(--size-small);
+  text-align: left;
+  font-weight: 400;
+  vertical-align: top;
+}
+
+.shipping-details th {
+  width: 5.5em;
+  color: var(--ink-muted);
+}
+
+.queue-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  border-bottom: var(--rule) solid var(--ink);
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+}
+
+.queue-tabs button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.queue-tabs button:hover {
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+}
+
+.queue-tabs [aria-pressed='true'] {
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 3px solid var(--attention-mark);
+}
+
+/* ===========================================================================
+   Spin-up log
+   =========================================================================== */
+
+.spinup-log {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+
+.ledger-scroll > .spinup-log {
+  min-width: 520px;
+}
+
+.spinup-log th,
+.spinup-log td {
+  padding: 3px 8px;
+  border-bottom: var(--rule) solid var(--rule-faint);
+  vertical-align: top;
+}
+
+.spinup-log thead th {
+  border-bottom: var(--rule) solid var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.spinup-step {
+  line-height: 1.3;
+}
+
+/* The total row. The progress bar used to float loose under the table at a
+   300px max-width, orphaned from the thing it was summarising. A log's total
+   belongs in the log's own foot, on the far side of a heavier rule — so it reads
+   as the sum of the rows above it rather than as a stray widget. */
+.spinup-log tfoot th,
+.spinup-log tfoot td {
+  border-top: var(--rule) solid var(--ink);
+  border-bottom: 0;
+  padding-top: 7px;
+}
+
+.spinup-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Fill fraction as the glyph. The count in text beside it says the same thing
+   for anyone the bar does not reach. */
+.tally-bar {
+  flex: 1;
+  height: 0.7em;
+  border: var(--rule) solid var(--ink);
+  background-image: var(--hatch);
+}
+
+.tally-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------
+   The head start.
+
+   The repo exists four steps before spin-up finishes, and nothing about the
+   remaining steps blocks writing the site. So the moment there is a repo, the
+   page stops being a progress report and starts being a handover: this is the
+   thing you can do now, and here is the line to paste.
+   --------------------------------------------------------------------------- */
+
+.headstart {
+  border: var(--rule) solid var(--ink);
+  border-left: 4px solid var(--clear-mark);
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+.headstart p {
+  max-width: var(--measure-prose);
+}
+
+/* A command to run, set so it can be selected in one gesture. */
+.command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: var(--rule) solid var(--ink);
+  background-image: var(--crosshatch);
+  padding: 5px 4px 5px 10px;
+  margin: 10px 0;
+}
+
+.command code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  /* A command must never be shown wrapped or truncated — a half-copied clone
+     line fails silently. It scrolls instead. */
+  scrollbar-width: thin;
+}
+
+/* ===========================================================================
+   Actions
+
+   Flat, square, 1px border, instant hover. Three weights: strong for the one
+   commit on a page, plain for everything else, danger for the irreversible.
+   =========================================================================== */
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: var(--size-small);
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 5px 12px;
+  border: var(--rule) solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.action:disabled {
+  color: var(--ink-muted);
+  border-color: var(--rule-color);
+  cursor: not-allowed;
+}
+
+.action-strong {
+  background: var(--attention-mark);
+  border-color: var(--attention-mark);
+  color: var(--paper);
+}
+
+.action-strong:hover:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.action-strong:disabled {
+  background: var(--paper);
+}
+
+.action-clear {
+  border-color: var(--clear);
+  color: var(--clear);
+}
+
+.action-clear:hover:not(:disabled) {
+  background: var(--clear);
+  border-color: var(--clear);
+  color: var(--paper);
+}
+
+.action-danger {
+  border-color: var(--attention);
+  color: var(--attention);
+}
+
+.action-danger:hover:not(:disabled) {
+  background: var(--attention);
+  border-color: var(--attention);
+  color: var(--paper);
+}
+
+.action-quiet {
+  border-color: transparent;
+  font-weight: 400;
+  padding: 5px 4px;
+  text-decoration: underline;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* Row-level actions are chrome on approach: absent while reading, present on
+   hover *and* on keyboard focus anywhere in the row. State is never hidden
+   this way — only actions. */
+.on-approach {
+  visibility: hidden;
+}
+
+tr:hover .on-approach,
+tr:focus-within .on-approach {
+  visibility: visible;
+}
+
+/* ===========================================================================
+   The three steps — placard only
+
+   Numbered, ruled, no cards and no icons in circles. The number is a real
+   counter so the list survives its stylesheet.
+   =========================================================================== */
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  max-width: var(--measure-prose);
+}
+
+.steps li {
+  display: flex;
+  gap: 12px;
+  border-top: var(--rule) solid var(--rule-color);
+  padding: 8px 0;
+}
+
+.steps li:last-child {
+  border-bottom: var(--rule) solid var(--rule-color);
+}
+
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  flex: none;
+  width: 1.7em;
+  height: 1.7em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--rule) solid var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* ===========================================================================
+   Notices, fields, empties
+   =========================================================================== */
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border: var(--rule) solid var(--ink);
+  border-left: 4px solid var(--hold-mark);
+  padding: 8px 12px;
+  font-size: var(--size-small);
+  margin-top: 12px;
+}
+
+.notice-attention {
+  border-left-color: var(--attention-mark);
+}
+
+.notice-clear {
+  border-left-color: var(--clear-mark);
+}
+
+.error-note {
+  font-size: var(--size-small);
+  font-weight: 700;
+  color: var(--attention);
+}
+
+.empty {
+  border: var(--rule) solid var(--rule-color);
+  background-image: var(--crosshatch);
+  padding: var(--pad);
+  font-size: var(--size-small);
+}
+
+/* --- the specification form ---------------------------------------------
+   The pitch form is a paragraph the software says back to you, with the
+   parameters as blanks. It is an information graphic first and a control
+   second, which is why it has no labels above fields and only one button.
+   ---------------------------------------------------------------------- */
+
+.pitch-sentence {
+  border: var(--rule) solid var(--ink);
+  border-left: 4px solid var(--ink);
+  padding: 14px 16px;
+  font-size: var(--size-base);
+  line-height: 2.1;
+  max-width: none;
+}
+
+/* The prose measure cap is for paragraphs being read. These are being filled
+   in, and breaking a clause across lines mid-blank is worse than a long line. */
+.pitch-sentence p {
+  max-width: none;
+  margin-bottom: 0.35em;
+}
+
+.blank {
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0 4px;
+  min-width: 4ch;
+}
+
+.blank::placeholder {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* `:user-invalid`, not `:invalid` — a blank that hasn't been filled in yet is
+   unfinished, not wrong, and marking it red on arrival would make the whole
+   sentence read as an error before anyone had typed a character. */
+.blank:user-invalid {
+  border-bottom-color: var(--attention-mark);
+}
+
+.blank-wide {
+  width: 26ch;
+  max-width: 100%;
+}
+
+.blank-date {
+  width: 15ch;
+}
+
+.blank-slug {
+  width: 18ch;
+}
+
+/* For a number that is only ever a couple of digits — an hour count. */
+.blank-count {
+  width: 8ch;
+}
+
+/* A control group sitting inside a sentence stays on the sentence's line rather
+   than breaking it, which is what `display: flex` would otherwise do. */
+.pitch-sentence .action-row {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.spec-note {
+  display: block;
+  font-size: var(--size-small);
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.spec-field {
+  display: block;
+  margin-top: 14px;
+  font-size: var(--size-small);
+}
+
+.spec-field textarea,
+.spec-field input {
+  font: var(--size-base) / var(--leading) var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--rule) solid var(--ink);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.spec-field textarea {
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border-top: var(--rule) solid var(--ink);
+  margin-top: var(--pad);
+  padding-top: 12px;
+}
+
+/* --- key colour ---------------------------------------------------------
+   A program's identity colour, picked by pointing at it. Swatches are square
+   and abutting so the set reads as one strip of the palette rather than seven
+   floating objects; selection is a keyline, not a shadow.
+   ---------------------------------------------------------------------- */
+
+.key-swatches {
+  display: flex;
+  gap: 0;
+  border: var(--rule) solid var(--ink);
+  width: fit-content;
+}
+
+.swatch {
+  width: 26px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch[aria-checked='true'] {
+  box-sizing: content-box;
+  border: 3px solid var(--paper);
+  outline: var(--rule) solid var(--ink);
+  outline-offset: -3px;
+}
+
+.swatch-hex {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  text-transform: uppercase;
+  border: var(--rule) solid var(--ink);
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  width: 11ch;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.swatch-hex[aria-invalid='true'] {
+  border-color: var(--attention-mark);
+  color: var(--attention);
+}
+
+/* ===========================================================================
+   Motion
+
+   There is one animation in the sheet, it is a status indicator, and it is a
+   1-bit one: a monospace glyph that steps rather than a spinner that eases.
+   =========================================================================== */
+
+@keyframes tick {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+.working {
+  animation: tick 1s steps(1, end) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  .working {
+    animation: none;
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Type styles
+/* ===========================================================================
+   Small screens
 
-   Recursive is a variable font: CASL dials in how casual the letterforms are,
-   CRSV turns on single-storey cursive shapes. Three named steps keep usage
-   consistent instead of hand-tuning axes at every call site.
-   --------------------------------------------------------------------------- */
+   The homepage is the one surface a sixteen-year-old opens on a phone, so it is
+   the one surface that reflows. Instrument pages pan instead — see `.instrument`.
 
-@layer components {
-  .font-heading,
-  .font-display,
-  .font-casual {
-    font-family: var(--font-recursive), system-ui, sans-serif;
+   Two thresholds, and they are different on purpose:
+
+     860px  the public program ledger stacks. This is where its six columns stop
+            fitting, not where a phone starts — stacking here means the public
+            page never scrolls sideways and never gets cramped in between.
+     620px  the placard tightens up: less padding, looser sentence leading.
+   =========================================================================== */
+
+@media (max-width: 860px) {
+  /* One stacked record per program. Every cell already carries its own label in
+     text, so nothing is lost except the shared axis, which needs width to mean
+     anything at all. */
+  .ledger-stacked thead,
+  .ledger-stacked .run,
+  .ledger-stacked .axis {
+    display: none;
   }
 
-  /* Neutral and tight — UI headings, buttons, labels. */
-  .font-heading {
-    font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
+  .ledger-stacked,
+  .ledger-stacked tbody,
+  .ledger-stacked tr,
+  .ledger-stacked td {
+    display: block;
+    width: auto;
   }
 
-  /* Slightly loosened — page titles and section headings. */
-  .font-display {
-    font-variation-settings: "CASL" 0.4, "CRSV" 0, "MONO" 0;
-    letter-spacing: -0.015em;
+  .ledger-stacked tr {
+    border-bottom: var(--rule) solid var(--ink);
+    padding: 10px 0 12px 10px;
+    border-left: 4px solid var(--ink);
+    margin-bottom: -1px;
   }
 
-  /* Full casual warmth — reserved for program names. */
-  .font-casual {
-    font-variation-settings: "CASL" 1, "CRSV" 0, "MONO" 0;
+  .ledger-stacked td {
+    border-bottom: 0;
+    padding: 1px 0;
   }
 
-  /* -------------------------------------------------------------------------
-     Buttons
-     ------------------------------------------------------------------------- */
-
-  .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-bold;
-    @apply px-5 py-2.5 cursor-pointer whitespace-nowrap;
-    font-family: var(--font-recursive), system-ui, sans-serif;
-    font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease,
-      transform 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  .ledger-stacked td:empty {
+    display: none;
   }
 
-  .btn:disabled {
-    @apply opacity-60 cursor-not-allowed;
-    transform: none;
-    box-shadow: none;
+  .ledger-stacked .program-key {
+    display: none;
   }
 
-  .btn-primary {
-    @apply bg-hc-red text-white;
-    box-shadow: var(--shadow-red);
+  /* Stacked, there is no column head to read the cell against, so each cell
+     names itself. Above this width the head is back and these are dropped. */
+  .ledger-stacked td[data-label]::before {
+    content: attr(data-label) ' ';
+    font-family: var(--font-mono);
+    font-size: var(--size-small);
+    color: var(--ink-muted);
   }
 
-  .btn-primary:hover:not(:disabled) {
-    background-color: var(--color-hc-red-dark);
-    box-shadow: var(--shadow-red-hover);
-    transform: translateY(-1px);
+  /* Stacked rows are already full-width blocks, so there is nothing to scroll
+     and no edge to mark. */
+  .ledger-scroll:has(> .ledger-stacked) {
+    overflow-x: visible;
+    background-image: none;
   }
 
-  .btn-secondary {
-    @apply bg-white text-gray-700 border border-gray-200;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    @apply bg-gray-50 border-gray-300;
-  }
-
-  .btn-ghost {
-    @apply bg-gray-100 text-gray-600;
-  }
-
-  .btn-ghost:hover:not(:disabled) {
-    @apply bg-gray-200 text-gray-800;
-  }
-
-  .btn-lg {
-    @apply px-7 py-3.5 text-base;
-  }
-
-  .btn-sm {
-    @apply px-3 py-2 text-xs rounded-lg;
-  }
-
-  /* -------------------------------------------------------------------------
-     Surfaces
-     ------------------------------------------------------------------------- */
-
-  .card {
-    @apply bg-white rounded-2xl border border-gray-200;
-    box-shadow: var(--shadow-card);
-  }
-
-  .panel {
-    @apply bg-white rounded-3xl border border-gray-200;
-    box-shadow: var(--shadow-panel);
-  }
-
-  /* -------------------------------------------------------------------------
-     Form fields
-     ------------------------------------------------------------------------- */
-
-  .field-label {
-    @apply text-sm font-semibold text-gray-700;
-  }
-
-  .field-hint {
-    @apply text-xs text-gray-500;
-  }
-
-  .input {
-    @apply w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3;
-    @apply text-sm text-gray-900 placeholder-gray-400;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .input:focus {
-    @apply outline-none border-transparent ring-2 ring-hc-red;
-  }
-
-  /* Fill-in-the-blank input sitting inline in a sentence. */
-  .input-blank {
-    @apply min-w-36 flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5;
-    @apply text-sm font-medium text-gray-900 placeholder-gray-400;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .input-blank:focus {
-    @apply outline-none border-transparent ring-2 ring-hc-red;
-  }
-
-  /* Text input paired with a fixed prefix/suffix, e.g. ".smol.hackclub.com". */
-  .input-group {
-    @apply flex items-center bg-gray-50 border border-gray-300 rounded-xl overflow-hidden;
-  }
-
-  .input-group:focus-within {
-    @apply border-transparent ring-2 ring-hc-red;
-  }
-
-  .input-group input {
-    @apply flex-1 min-w-0 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400;
-    @apply outline-none;
-  }
-
-  .input-affix {
-    @apply px-3 py-3 text-sm text-gray-500 bg-gray-100/70 shrink-0;
-  }
-
-  /* -------------------------------------------------------------------------
-     Badges & pills
-     ------------------------------------------------------------------------- */
-
-  .badge {
-    @apply inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap;
-  }
-
-  .badge-green {
-    @apply bg-emerald-50 text-emerald-800 border-emerald-200;
-  }
-
-  .badge-blue {
-    @apply bg-blue-50 text-blue-800 border-blue-200;
-  }
-
-  .badge-amber {
-    @apply bg-amber-50 text-amber-800 border-amber-200;
-  }
-
-  .badge-red {
-    @apply bg-rose-50 text-rose-800 border-rose-200;
-  }
-
-  .badge-gray {
-    @apply bg-gray-100 text-gray-600 border-gray-200;
-  }
-
-  .pill {
-    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700;
-    @apply px-3 py-1.5 rounded-full bg-white border border-gray-200;
-  }
-
-  /* -------------------------------------------------------------------------
-     Notices — inline status banners
-     ------------------------------------------------------------------------- */
-
-  .notice {
-    @apply flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-5 py-3 text-sm;
-  }
-
-  .notice-amber {
-    @apply bg-amber-50 border-amber-200 text-amber-900;
-  }
-
-  .notice-blue {
-    @apply bg-blue-50 border-blue-200 text-blue-900;
+  .ledger-scroll > .ledger-stacked {
+    min-width: 0;
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Backdrops
-   --------------------------------------------------------------------------- */
+@media (max-width: 620px) {
+  :root {
+    --pad: 14px;
+  }
 
-.grid-bg {
-  background-image:
-    linear-gradient(to right, rgba(236, 55, 80, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(236, 55, 80, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
+  .masthead-frame {
+    padding: 16px 14px 20px;
+  }
 
-/* Soft warm glow that fades the grid out behind hero content. */
-.hero-glow {
-  position: relative;
-  isolation: isolate;
-}
+  .pitch-sentence {
+    line-height: 2.4;
+  }
 
-.hero-glow::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(60% 70% at 50% 0%, rgba(236, 55, 80, 0.09), transparent 70%),
-    radial-gradient(45% 55% at 50% 40%, rgba(253, 253, 253, 0.95), transparent 75%);
-  pointer-events: none;
-}
-
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 1.5s linear infinite;
-}
-
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 1.6s ease-in-out infinite;
+  .blank-wide {
+    width: 100%;
+  }
 }
