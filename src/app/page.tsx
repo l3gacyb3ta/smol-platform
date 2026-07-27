@@ -165,8 +165,8 @@ export default async function LandingPage() {
             <p className="masthead-line">Small build challenges. Real rewards.</p>
 
             <p>
-              Ship a tiny project. We ship you something picked for the thing it asked you to
-              build — to your actual address, in the actual mail. Free, run by teenagers at Hack
+              Ship something specific. We ship you something picked for the thing it asked you to
+              build. Free, run by teenagers at Hack
               Club, and you keep everything you make.
             </p>
           </div>
