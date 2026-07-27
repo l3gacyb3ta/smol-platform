@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar'
 import { getProgram } from '@/lib/airtable'
 import { getSubmissions, stripPII } from '@/lib/airtable-submissions'
 import { auth } from '@/auth'
-import { isAdmin, canAccessProgram } from '@/lib/permissions'
+import { isAdmin, canAccessProgram, canAccessSubmissions } from '@/lib/permissions'
 import SubmissionsList from './SubmissionsList'
 
 export async function generateMetadata({
@@ -26,8 +26,13 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
   const slackId = session?.user?.slackId
   if (!canAccessProgram(slackId, program)) notFound()
 
+  // A program only owns its Slack channel once an admin has accepted it, and
+  // that channel is the only thing tying submissions to a program. Until then
+  // there is nothing to show and nothing we can safely attribute.
+  const reviewable = canAccessSubmissions(slackId, program)
+
   const admin = isAdmin(slackId)
-  const allSubmissions = await getSubmissions(program.slackChannel)
+  const allSubmissions = reviewable ? await getSubmissions(program.slackChannel) : []
   const submissions = admin ? allSubmissions : allSubmissions.map(stripPII)
 
   const pendingCount = submissions.filter(s => s.status === 'Pending').length
@@ -47,14 +52,28 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <div className="h-7 w-1.5 rounded-full" style={{ backgroundColor: program.keyColor }} />
             <h1 className="font-display text-2xl font-extrabold text-hc-dark">Submissions</h1>
-            <span className="text-sm font-semibold text-gray-400">
-              {submissions.length} in total
-              {pendingCount > 0 && ` · ${pendingCount} waiting on review`}
-            </span>
+            {reviewable && (
+              <span className="text-sm font-semibold text-gray-400">
+                {submissions.length} in total
+                {pendingCount > 0 && ` · ${pendingCount} waiting on review`}
+              </span>
+            )}
           </div>
         </header>
 
-        <SubmissionsList initialSubmissions={submissions} isAdmin={admin} />
+        {reviewable ? (
+          <SubmissionsList initialSubmissions={submissions} isAdmin={admin} />
+        ) : (
+          <div className="card flex flex-col items-center gap-3 p-12 text-center">
+            <h2 className="font-display text-lg font-bold text-hc-dark">
+              Submissions open once your program is accepted
+            </h2>
+            <p className="max-w-md text-sm leading-relaxed text-gray-500">
+              A Hack Club admin still needs to review this pitch. Once they accept it
+              and spin-up finishes, everything people ship will land here.
+            </p>
+          </div>
+        )}
       </main>
     </div>
   )

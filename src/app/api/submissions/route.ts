@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getProgram } from '@/lib/airtable'
-import { isAdmin, canAccessProgram } from '@/lib/permissions'
+import { isAdmin, canAccessSubmissions } from '@/lib/permissions'
 import { getSubmissions, stripPII } from '@/lib/airtable-submissions'
 
 export async function GET(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const program = await getProgram(programId)
   if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (!canAccessProgram(session.user.slackId, program)) {
+  if (!canAccessSubmissions(session.user.slackId, program)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

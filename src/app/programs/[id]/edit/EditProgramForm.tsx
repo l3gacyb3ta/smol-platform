@@ -81,7 +81,13 @@ export default function EditProgramForm({ program }: { program: Program }) {
           keyColor,
         }),
       })
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) {
+        // Duplicate channel/subdomain and charset rejections carry a reason.
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Couldn’t save those changes. Give it another go.')
+        setSaving(false)
+        return
+      }
       router.push(`/programs/${program.id}`)
       router.refresh()
     } catch {

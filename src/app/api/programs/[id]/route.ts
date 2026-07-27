@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProgram, updateProgram, deleteProgram } from '@/lib/airtable'
+import {
+  getProgram,
+  updateProgram,
+  deleteProgram,
+  isSlackChannelTaken,
+  getProgramBySubdomain,
+} from '@/lib/airtable'
 import { auth } from '@/auth'
 import { canAccessProgram, isAdmin } from '@/lib/permissions'
+import { SLACK_CHANNEL_RE, SUBDOMAIN_RE } from '@/lib/constants'
 import type { Session } from 'next-auth'
 
 type Params = { params: Promise<{ id: string }> }
@@ -42,7 +49,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { error, session } = await authorize(id)
   if (error) return error
   const body = await req.json()
-  const program = await updateProgram(id, stripPrivilegedFields(body, session ?? null))
+  const patch = stripPrivilegedFields(body, session ?? null)
+
+  // Validate identifiers after stripping, so we check what will actually be
+  // written. Renaming a channel onto another program's would make submission
+  // ownership ambiguous, which is an authorization boundary.
+  if (typeof patch.slackChannel === 'string') {
+    if (!SLACK_CHANNEL_RE.test(patch.slackChannel)) {
+      return NextResponse.json({ error: 'Invalid Slack channel' }, { status: 400 })
+    }
+    if (await isSlackChannelTaken(patch.slackChannel, id)) {
+      return NextResponse.json({ error: 'That Slack channel is already taken' }, { status: 409 })
+    }
+  }
+  if (typeof patch.subdomain === 'string') {
+    if (!SUBDOMAIN_RE.test(patch.subdomain)) {
+      return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400 })
+    }
+    const owner = await getProgramBySubdomain(patch.subdomain)
+    if (owner && owner.id !== id) {
+      return NextResponse.json({ error: 'That subdomain is already taken' }, { status: 409 })
+    }
+  }
+
+  const program = await updateProgram(id, patch)
   return NextResponse.json(program)
 }
 

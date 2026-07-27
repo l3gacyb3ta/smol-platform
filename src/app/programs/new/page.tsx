@@ -118,7 +118,14 @@ export default function NewProgramPage() {
           creatorGithubUsername: githubUsername || undefined,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create program')
+      if (!res.ok) {
+        // The server rejects duplicate channels/subdomains and bad charsets —
+        // show its reason rather than a generic failure.
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Something went wrong on our end. Give it another go.')
+        setSubmitting(false)
+        return
+      }
       const program = await res.json()
       router.push(`/programs/${program.id}/creating`)
     } catch {

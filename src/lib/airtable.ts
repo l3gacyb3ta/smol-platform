@@ -112,16 +112,59 @@ export async function deleteProgram(id: string): Promise<void> {
   await table().update(id, { Status: 'deleted' } as FieldSet)
 }
 
+/**
+ * Escapes a value for interpolation into an Airtable formula string literal.
+ * Callers should still validate the charset where they can — this is the
+ * backstop for values that arrive from outside (submission form fields), and it
+ * also stops a legitimate apostrophe from breaking the query.
+ */
+function escapeFormulaValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
+/**
+ * Resolves the program that owns a Slack channel.
+ *
+ * Refuses to answer when the channel is ambiguous. Airtable enforces no
+ * uniqueness on `Slack Channel`, and this lookup decides who may review a
+ * submission — handing back an arbitrary `records[0]` would let whoever
+ * happened to sort first authorize against someone else's submissions.
+ */
 export async function getProgramBySlackChannel(channel: string): Promise<Program | null> {
+  if (!channel) return null
   const records = await table()
-    .select({ filterByFormula: `{Slack Channel} = '${channel}'` })
+    .select({
+      filterByFormula: `AND({Slack Channel} = '${escapeFormulaValue(channel)}', NOT({Status} = 'deleted'))`,
+      maxRecords: 2,
+    })
     .firstPage()
-  return records[0] ? mapRecord(records[0]) : null
+  if (records.length !== 1) {
+    if (records.length > 1) {
+      console.error(`Ambiguous Slack channel "${channel}" — ${records.length} programs claim it`)
+    }
+    return null
+  }
+  return mapRecord(records[0])
 }
 
 export async function getProgramBySubdomain(subdomain: string): Promise<Program | null> {
   const records = await table()
-    .select({ filterByFormula: `AND({Subdomain} = '${subdomain}', NOT({Status} = 'deleted'))` })
+    .select({
+      filterByFormula: `AND({Subdomain} = '${escapeFormulaValue(subdomain)}', NOT({Status} = 'deleted'))`,
+    })
     .firstPage()
   return records[0] ? mapRecord(records[0]) : null
+}
+
+/**
+ * Whether a non-deleted program other than `exceptId` already claims a channel.
+ * Keeps `Slack Channel` unique, which Airtable itself will not do.
+ */
+export async function isSlackChannelTaken(channel: string, exceptId?: string): Promise<boolean> {
+  const records = await table()
+    .select({
+      filterByFormula: `AND({Slack Channel} = '${escapeFormulaValue(channel)}', NOT({Status} = 'deleted'))`,
+    })
+    .firstPage()
+  return records.some(r => r.id !== exceptId)
 }

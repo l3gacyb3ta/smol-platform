@@ -9,6 +9,14 @@ export const KEY_COLORS = [
   '#7950f2',
 ] as const
 
+/**
+ * Identifier charsets, enforced server-side. Both values are interpolated into
+ * Airtable formulas and used to name external resources (repo, DNS record,
+ * Slack channel), so they are validated rather than trusted from the client.
+ */
+export const SUBDOMAIN_RE = /^[a-z0-9-]{1,63}$/
+export const SLACK_CHANNEL_RE = /^[a-z0-9-]{1,80}$/
+
 export const ROOT_DOMAIN = 'smol.hackclub.com'
 
 export const SITE_URL = `https://${ROOT_DOMAIN}`
