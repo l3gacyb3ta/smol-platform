@@ -52,7 +52,11 @@ function mapRecord(record: Airtable.Record<FieldSet>): Submission {
   return {
     id: record.id,
     status: ((f['Status'] as string) ?? 'Pending') as SubmissionStatus,
-    programSlackChannel: (f['Program Slack Channel'] as string) ?? '',
+    // Lowercase on purpose: the Airtable field really is named "program slack
+    // channel". Reading fields is a plain property access, so it's
+    // case-sensitive — title-casing this silently yields '' and every review
+    // then 403s, because the program lookup in the review route finds nothing.
+    programSlackChannel: (f['program slack channel'] as string) ?? '',
     firstName: (f['First Name'] as string) ?? '',
     lastName: (f['Last Name'] as string) ?? '',
     slackUsername: (f['Slack Username'] as string) || undefined,
@@ -80,9 +84,11 @@ function mapRecord(record: Airtable.Record<FieldSet>): Submission {
 }
 
 export async function getSubmissions(programSlackChannel: string): Promise<Submission[]> {
-  // Channel names are [a-z0-9-] so no escaping needed
+  // Channel names are [a-z0-9-] so no escaping needed. Formula field
+  // references are case-insensitive, unlike the property reads above, but this
+  // matches the real field name to keep the two in step.
   const records = await table()
-    .select({ filterByFormula: `{Program Slack Channel} = '${programSlackChannel}'` })
+    .select({ filterByFormula: `{program slack channel} = '${programSlackChannel}'` })
     .all()
   return records.map(mapRecord)
 }

@@ -1,10 +1,21 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import { getProgram } from '@/lib/airtable'
 import { auth } from '@/auth'
 import { canAccessProgram } from '@/lib/permissions'
 import EditProgramForm from './EditProgramForm'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const program = await getProgram(id)
+  return { title: program ? `Edit ${program.name}` : 'Edit program' }
+}
 
 export default async function EditProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -14,28 +25,29 @@ export default async function EditProgramPage({ params }: { params: Promise<{ id
   if (!canAccessProgram(session.user?.slackId, program)) redirect('/dashboard')
 
   return (
-    <div className="min-h-screen flex flex-col grid-bg">
+    <div className="grid-bg flex min-h-screen flex-col">
       <Navbar variant="admin" />
 
-      <main className="flex-1 flex items-start justify-center py-12 px-4">
-        <div
-          className="bg-white rounded-3xl w-full max-w-2xl px-14 pt-12 pb-14"
-          style={{ border: '1px solid #e5e7eb', boxShadow: '0 16px 24px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.1)' }}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+        <Link
+          href={`/programs/${program.id}`}
+          className="text-sm font-semibold text-gray-500 transition-colors hover:text-hc-red"
         >
-          <div className="flex flex-col items-center gap-2 mb-8">
-            <Link href={`/programs/${program.id}`} className="text-gray-500 text-sm font-semibold hover:text-gray-700 self-start">
-              ← Back to program
-            </Link>
-            <h1
-              className="text-hc-dark text-3xl font-extrabold text-center"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-            >
+          ← Back to {program.name}
+        </Link>
+
+        <div className="panel mt-4 px-6 py-10 sm:px-12">
+          <div className="mb-8 flex flex-col gap-1.5">
+            <h1 className="font-display text-2xl font-extrabold text-hc-dark sm:text-3xl">
               Edit {program.name}
             </h1>
-            <p className="text-gray-500 text-sm text-center">Update program details. Resources and status aren&apos;t changed here.</p>
+            <p className="text-sm text-gray-500">
+              Changes here don&apos;t touch the program&apos;s status or any resource
+              already provisioned for it.
+            </p>
           </div>
 
-          <hr className="border-gray-100 mb-8" />
+          <hr className="mb-8 border-gray-100" />
 
           <EditProgramForm program={program} />
         </div>

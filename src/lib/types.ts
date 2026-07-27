@@ -10,6 +10,12 @@ export interface Program {
   endDate: string
   keyColor: string
   status: ProgramStatus
+  /**
+   * The reward half of the pitch on its own, e.g. "a handheld to play it on".
+   * `description` still holds the whole sentence and is what gets rendered;
+   * this exists so the reward is queryable without parsing prose.
+   */
+  weShip?: string
   template?: string
   resources: {
     slack?: string
@@ -31,6 +37,7 @@ export interface Program {
 export interface CreateProgramInput {
   name: string
   description: string
+  weShip?: string
   slackChannel: string
   subdomain: string
   startDate: string

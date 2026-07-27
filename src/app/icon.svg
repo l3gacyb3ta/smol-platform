@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#ec3750"/>
+  <text
+    x="32" y="46"
+    text-anchor="middle"
+    font-family="'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="44"
+    font-weight="800"
+    fill="#ffffff"
+  >s</text>
+</svg>

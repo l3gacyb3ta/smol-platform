@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  /* Hack Club palette */
   --color-hc-red: #ec3750;
+  --color-hc-red-dark: #d92642;
   --color-hc-orange: #ff4d05;
   --color-hc-yellow: #f7b731;
   --color-hc-green: #20c997;
@@ -10,9 +12,17 @@
   --color-hc-purple: #7950f2;
   --color-hc-pink: #ff6b6b;
   --color-hc-dark: #111827;
+  --color-hc-muted: #6b7280;
 
   --font-heading: var(--font-recursive);
   --font-body: var(--font-jakarta);
+
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px rgba(17, 24, 39, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(17, 24, 39, 0.05), 0 12px 28px rgba(17, 24, 39, 0.09);
+  --shadow-panel: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 32px rgba(17, 24, 39, 0.08);
+  --shadow-modal: 0 24px 48px rgba(17, 24, 39, 0.22);
+  --shadow-red: 0 2px 6px rgba(236, 55, 80, 0.28);
+  --shadow-red-hover: 0 4px 14px rgba(236, 55, 80, 0.36);
 }
 
 * {
@@ -28,32 +38,255 @@ body {
 
 body {
   font-family: var(--font-jakarta), system-ui, sans-serif;
-  color: #111827;
-  background: #ffffff;
+  color: var(--color-hc-dark);
+  background: #fdfdfd;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a, button {
-  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
-}
-
 *:focus-visible {
-  outline: 2px solid #ec3750;
+  outline: 2px solid var(--color-hc-red);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-.font-heading {
-  font-family: var(--font-recursive), system-ui, sans-serif;
-  font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
+
+/* ---------------------------------------------------------------------------
+   Type styles
+
+   Recursive is a variable font: CASL dials in how casual the letterforms are,
+   CRSV turns on single-storey cursive shapes. Three named steps keep usage
+   consistent instead of hand-tuning axes at every call site.
+   --------------------------------------------------------------------------- */
+
+@layer components {
+  .font-heading,
+  .font-display,
+  .font-casual {
+    font-family: var(--font-recursive), system-ui, sans-serif;
+  }
+
+  /* Neutral and tight — UI headings, buttons, labels. */
+  .font-heading {
+    font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
+  }
+
+  /* Slightly loosened — page titles and section headings. */
+  .font-display {
+    font-variation-settings: "CASL" 0.4, "CRSV" 0, "MONO" 0;
+    letter-spacing: -0.015em;
+  }
+
+  /* Full casual warmth — reserved for program names. */
+  .font-casual {
+    font-variation-settings: "CASL" 1, "CRSV" 0, "MONO" 0;
+  }
+
+  /* -------------------------------------------------------------------------
+     Buttons
+     ------------------------------------------------------------------------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-bold;
+    @apply px-5 py-2.5 cursor-pointer whitespace-nowrap;
+    font-family: var(--font-recursive), system-ui, sans-serif;
+    font-variation-settings: "CASL" 0, "CRSV" 0, "MONO" 0;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease,
+      transform 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-primary {
+    @apply bg-hc-red text-white;
+    box-shadow: var(--shadow-red);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-hc-red-dark);
+    box-shadow: var(--shadow-red-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-200;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-gray-50 border-gray-300;
+  }
+
+  .btn-ghost {
+    @apply bg-gray-100 text-gray-600;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    @apply bg-gray-200 text-gray-800;
+  }
+
+  .btn-lg {
+    @apply px-7 py-3.5 text-base;
+  }
+
+  .btn-sm {
+    @apply px-3 py-2 text-xs rounded-lg;
+  }
+
+  /* -------------------------------------------------------------------------
+     Surfaces
+     ------------------------------------------------------------------------- */
+
+  .card {
+    @apply bg-white rounded-2xl border border-gray-200;
+    box-shadow: var(--shadow-card);
+  }
+
+  .panel {
+    @apply bg-white rounded-3xl border border-gray-200;
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* -------------------------------------------------------------------------
+     Form fields
+     ------------------------------------------------------------------------- */
+
+  .field-label {
+    @apply text-sm font-semibold text-gray-700;
+  }
+
+  .field-hint {
+    @apply text-xs text-gray-500;
+  }
+
+  .input {
+    @apply w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3;
+    @apply text-sm text-gray-900 placeholder-gray-400;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .input:focus {
+    @apply outline-none border-transparent ring-2 ring-hc-red;
+  }
+
+  /* Fill-in-the-blank input sitting inline in a sentence. */
+  .input-blank {
+    @apply min-w-36 flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5;
+    @apply text-sm font-medium text-gray-900 placeholder-gray-400;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .input-blank:focus {
+    @apply outline-none border-transparent ring-2 ring-hc-red;
+  }
+
+  /* Text input paired with a fixed prefix/suffix, e.g. ".smol.hackclub.com". */
+  .input-group {
+    @apply flex items-center bg-gray-50 border border-gray-300 rounded-xl overflow-hidden;
+  }
+
+  .input-group:focus-within {
+    @apply border-transparent ring-2 ring-hc-red;
+  }
+
+  .input-group input {
+    @apply flex-1 min-w-0 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400;
+    @apply outline-none;
+  }
+
+  .input-affix {
+    @apply px-3 py-3 text-sm text-gray-500 bg-gray-100/70 shrink-0;
+  }
+
+  /* -------------------------------------------------------------------------
+     Badges & pills
+     ------------------------------------------------------------------------- */
+
+  .badge {
+    @apply inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap;
+  }
+
+  .badge-green {
+    @apply bg-emerald-50 text-emerald-800 border-emerald-200;
+  }
+
+  .badge-blue {
+    @apply bg-blue-50 text-blue-800 border-blue-200;
+  }
+
+  .badge-amber {
+    @apply bg-amber-50 text-amber-800 border-amber-200;
+  }
+
+  .badge-red {
+    @apply bg-rose-50 text-rose-800 border-rose-200;
+  }
+
+  .badge-gray {
+    @apply bg-gray-100 text-gray-600 border-gray-200;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700;
+    @apply px-3 py-1.5 rounded-full bg-white border border-gray-200;
+  }
+
+  /* -------------------------------------------------------------------------
+     Notices — inline status banners
+     ------------------------------------------------------------------------- */
+
+  .notice {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-5 py-3 text-sm;
+  }
+
+  .notice-amber {
+    @apply bg-amber-50 border-amber-200 text-amber-900;
+  }
+
+  .notice-blue {
+    @apply bg-blue-50 border-blue-200 text-blue-900;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Backdrops
+   --------------------------------------------------------------------------- */
 
 .grid-bg {
   background-image:
-    linear-gradient(to right, rgba(236, 55, 80, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(236, 55, 80, 0.07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(236, 55, 80, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(236, 55, 80, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* Soft warm glow that fades the grid out behind hero content. */
+.hero-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgba(236, 55, 80, 0.09), transparent 70%),
+    radial-gradient(45% 55% at 50% 40%, rgba(253, 253, 253, 0.95), transparent 75%);
+  pointer-events: none;
 }
 
 @keyframes spin-slow {
@@ -63,4 +296,13 @@ a, button {
 
 .animate-spin-slow {
   animation: spin-slow 1.5s linear infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
 }

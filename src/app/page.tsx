@@ -1,114 +1,113 @@
-import Navbar from '@/components/Navbar'
 import Link from 'next/link'
-import { getPrograms } from '@/lib/airtable'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+import LoginButton from '@/components/LoginButton'
 import { ProgramCard } from '@/components/ProgramCard'
+import { CalendarIcon, GiftIcon, LightbulbIcon, UsersIcon } from '@/components/Icons'
+import { getPrograms } from '@/lib/airtable'
+import { formatDate } from '@/lib/format'
+import { programHost, programUrl } from '@/lib/constants'
 import type { Program } from '@/lib/types'
 import { auth } from '@/auth'
 
-const FEATURE_CARDS = [
+const STEPS = [
   {
-    title: 'Learning something new',
-    description: 'Learn new software, new hardware, or just a new way to make a project!',
-    accentColor: '#5bc0de',
-    borderColor: '#5bc0de',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-    ),
+    title: 'Pick a program',
+    body: 'Each smol runs for a few weeks with its own theme, its own Slack channel, and its own reward.',
+    color: '#5bc0de',
   },
   {
-    title: 'Engaging community',
-    description: "Meet other builders, share what you're making, and get help when you need it.",
-    accentColor: '#7950f2',
-    borderColor: '#7950f2',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
+    title: 'Build and ship it',
+    body: 'Make your thing, then submit it with a link and a screenshot before the deadline closes.',
+    color: '#7950f2',
   },
   {
-    title: 'Cool rewards',
-    description: "Don't just get another 3D Printer. Get something made specifically for this program.",
-    accentColor: '#ec3750',
-    borderColor: '#ec3750',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 12 20 22 4 22 4 12"/>
-        <rect x="2" y="7" width="20" height="5"/>
-        <line x1="12" y1="22" x2="12" y2="7"/>
-        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
-      </svg>
-    ),
+    title: 'Get the goods',
+    body: 'A real person reads every submission. Once you are approved, your reward goes in the mail.',
+    color: '#ec3750',
   },
 ]
 
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
+const PERKS = [
+  {
+    icon: <LightbulbIcon size={26} />,
+    title: 'Learn something new',
+    body: 'A new language, a new board, a new corner of the internet. Every program is an excuse to try something you have not.',
+    color: '#5bc0de',
+  },
+  {
+    icon: <UsersIcon size={26} />,
+    title: 'Build with other people',
+    body: 'Every program gets its own Slack channel. Post progress, ask for help, watch what everyone else is making.',
+    color: '#7950f2',
+  },
+  {
+    icon: <GiftIcon size={26} />,
+    title: 'Rewards worth wanting',
+    body: 'Not another 3D printer. Each smol has a reward chosen specifically for the thing it asks you to build.',
+    color: '#ec3750',
+  },
+]
 
-function ActiveBadge() {
-  return (
-    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0' }}>
-      Active
-    </span>
-  )
-}
-
-function UpcomingBadge() {
-  return (
-    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
-      Upcoming
-    </span>
-  )
-}
-
-function PublicProgramCard({ program, variant }: { program: Program; variant: 'active' | 'upcoming' }) {
-  const websiteUrl = `https://${program.subdomain}.smol.hackclub.com`
+function PublicProgramCard({ program, variant }: { program: Program; variant: 'open' | 'soon' }) {
   const slackUrl = program.resources.slack
-  const dateLabel = variant === 'active'
-    ? (program.endDate ? `Ends ${formatDate(program.endDate)}` : 'Ongoing')
-    : `Starts ${formatDate(program.startDate)}`
+  const dateLabel =
+    variant === 'open'
+      ? program.endDate
+        ? `Closes ${formatDate(program.endDate)}`
+        : 'Open-ended'
+      : `Opens ${formatDate(program.startDate)}`
 
   return (
-    <ProgramCard program={program} badge={variant === 'active' ? <ActiveBadge /> : <UpcomingBadge />}>
-      <div className="text-xs text-gray-400 font-medium">{dateLabel}</div>
+    <ProgramCard
+      program={program}
+      badge={
+        <span className={`badge ${variant === 'open' ? 'badge-green' : 'badge-blue'}`}>
+          {variant === 'open' ? 'Open now' : 'Starting soon'}
+        </span>
+      }
+    >
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="text-xs font-semibold tracking-wide text-gray-400 uppercase">
+          {dateLabel}
+        </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <a
-          href={websiteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: program.keyColor }}
-        >
-          Website ↗
-        </a>
-        {slackUrl ? (
+        <div className="flex flex-wrap gap-2">
           <a
-            href={slackUrl}
+            href={programUrl(program.subdomain)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            className="btn btn-sm text-white"
+            style={{ backgroundColor: program.keyColor }}
           >
-            #{program.slackChannel}
+            {programHost(program.subdomain)} ↗
           </a>
-        ) : (
-          <span className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500">
-            #{program.slackChannel}
-          </span>
-        )}
+          {slackUrl ? (
+            <a
+              href={slackUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-sm btn-ghost"
+            >
+              #{program.slackChannel}
+            </a>
+          ) : (
+            <span className="btn btn-sm btn-ghost cursor-default opacity-70">
+              #{program.slackChannel}
+            </span>
+          )}
+        </div>
       </div>
     </ProgramCard>
+  )
+}
+
+function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="mb-8 flex flex-col gap-1.5">
+      <span className="text-xs font-bold tracking-widest text-hc-red uppercase">{eyebrow}</span>
+      <h2 className="font-display text-2xl font-bold text-hc-dark sm:text-3xl">{title}</h2>
+    </div>
   )
 }
 
@@ -116,158 +115,220 @@ export default async function LandingPage() {
   const session = await auth()
   const today = new Date().toISOString().split('T')[0]
 
-  let activePrograms: Program[] = []
-  let upcomingPrograms: Program[] = []
+  let openPrograms: Program[] = []
+  let soonPrograms: Program[] = []
+  let programsUnavailable = false
 
   try {
     const programs = await getPrograms()
-    activePrograms = programs.filter(p => p.status === 'active')
-    upcomingPrograms = programs.filter(
-      p => p.status === 'accepted' && p.startDate > today
-    )
+    openPrograms = programs.filter(p => p.status === 'active')
+    soonPrograms = programs.filter(p => p.status === 'accepted' && p.startDate > today)
   } catch {
-    // silently degrade — programs section just won't render
+    // Airtable is down or misconfigured. The page still explains what smol is;
+    // the programs section owns the apology.
+    programsUnavailable = true
   }
 
-  const hasPrograms = activePrograms.length > 0 || upcomingPrograms.length > 0
+  const openCount = openPrograms.length
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Navbar variant="public" />
 
-      <main className="flex-1 grid-bg">
-        {/* Hero */}
-        <section className="flex flex-col items-center justify-center gap-3 py-10 px-6 text-center">
-          <div
-            className="bg-hc-red text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-          >
-            A You Ship We Ship project, run by Arcade at Hack Club
-          </div>
+      <main className="flex-1">
+        {/* ---------------------------------------------------------------- Hero */}
+        <section className="grid-bg hero-glow border-b border-gray-200/70">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 px-6 py-16 text-center sm:py-20">
+            <span className="font-heading rounded-2xl bg-hc-red px-4 py-2 text-xs font-bold text-white shadow-md sm:rounded-full">
+              A You Ship We Ship project, run by Arcade Wise at Hack Club
+            </span>
 
-          <h1
-            className="font-heading text-hc-dark leading-none tracking-tighter"
-            style={{
-              fontSize: 'clamp(60px, 14vw, 160px)',
-              fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0',
-              letterSpacing: '-0.03em',
-            }}
-          >
-            Smol
-          </h1>
-
-          <p
-            className="text-hc-dark text-lg font-semibold opacity-90"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-          >
-            Small YSWSs, big fun
-          </p>
-
-          {session && (
-            <Link
-              href="/dashboard"
-              className="bg-hc-red text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-red-600 transition-colors"
-              style={{ fontFamily: 'var(--font-recursive)', boxShadow: '0 4px 8px rgba(236,55,80,0.4)' }}
+            <h1
+              className="font-display leading-none font-extrabold text-hc-dark"
+              style={{ fontSize: 'clamp(76px, 15vw, 146px)', letterSpacing: '-0.045em' }}
             >
-              Go to Dashboard →
-            </Link>
-          )}
-        </section>
+              smol
+            </h1>
 
-        {/* Active & Upcoming Programs */}
-        {hasPrograms && (
-          <section className="px-6 md:px-16 lg:px-24 pb-16">
-            <div className="max-w-5xl mx-auto flex flex-col gap-12">
-              {activePrograms.length > 0 && (
-                <div>
-                  <h2
-                    className="text-hc-dark text-2xl font-bold mb-6"
-                    style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0.18, "CRSV" 0, "MONO" 0' }}
-                  >
-                    Active Programs
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {activePrograms.map(p => (
-                      <PublicProgramCard key={p.id} program={p} variant="active" />
-                    ))}
-                  </div>
-                </div>
-              )}
+            <p className="max-w-xl text-lg leading-relaxed font-medium text-gray-600 sm:text-xl">
+              Small build challenges with real rewards. Ship a tiny project, and we
+              ship you something you actually want.
+            </p>
 
-              {upcomingPrograms.length > 0 && (
-                <div>
-                  <h2
-                    className="text-hc-dark text-2xl font-bold mb-6"
-                    style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0.18, "CRSV" 0, "MONO" 0' }}
-                  >
-                    Upcoming Programs
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {upcomingPrograms.map(p => (
-                      <PublicProgramCard key={p.id} program={p} variant="upcoming" />
-                    ))}
-                  </div>
-                </div>
+            <div className="mt-2 flex flex-col items-center gap-3 sm:flex-row">
+              <a href="#programs" className="btn btn-primary btn-lg">
+                See what&apos;s open
+              </a>
+              {session ? (
+                <Link href="/dashboard" className="btn btn-secondary btn-lg">
+                  Go to your dashboard
+                </Link>
+              ) : (
+                <a href="#run-your-own" className="btn btn-secondary btn-lg">
+                  Run your own
+                </a>
               )}
             </div>
-          </section>
-        )}
 
-        {/* Cards section */}
-        <section className="px-6 md:px-16 lg:px-24 pb-20">
-          <h2
-            className="text-hc-dark text-2xl font-bold text-center mb-8 opacity-95"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-          >
-            Programs focused on:
-          </h2>
+            {openCount > 0 && (
+              <p className="text-sm font-semibold text-gray-400">
+                {openCount} {openCount === 1 ? 'program' : 'programs'} accepting
+                submissions right now
+              </p>
+            )}
+          </div>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {FEATURE_CARDS.map((card) => (
-              <div
-                key={card.title}
-                className="bg-white rounded-2xl p-6 flex flex-col gap-4"
-                style={{
-                  border: `1.5px solid ${card.borderColor}33`,
-                  boxShadow: `0 4px 20px ${card.accentColor}18, 0 2px 6px rgba(0,0,0,0.06)`,
-                }}
-              >
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: `${card.accentColor}18`, color: card.accentColor }}
+        {/* ------------------------------------------------------------ Programs */}
+        <section id="programs" className="scroll-mt-20 border-b border-gray-200/70 bg-white">
+          <div className="mx-auto w-full max-w-5xl px-6 py-16">
+            <SectionHeading eyebrow="Programs" title="Open right now" />
+
+            {programsUnavailable ? (
+              <div className="card p-8 text-center">
+                <p className="text-sm font-semibold text-gray-600">
+                  We can&apos;t load the program list right now.
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Try again in a minute — or ask in the Hack Club Slack, someone
+                  there always knows what&apos;s running.
+                </p>
+              </div>
+            ) : openPrograms.length > 0 ? (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {openPrograms.map(p => (
+                  <PublicProgramCard key={p.id} program={p} variant="open" />
+                ))}
+              </div>
+            ) : (
+              <div className="card flex flex-col items-center gap-3 p-10 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+                  <CalendarIcon size={24} />
+                </span>
+                <p className="font-display text-lg font-bold text-hc-dark">
+                  Nothing open at this exact moment
+                </p>
+                <p className="max-w-md text-sm leading-relaxed text-gray-500">
+                  New smols start all the time, and they are usually announced in
+                  Slack first. Hop in and you&apos;ll hear about the next one before
+                  it lands here.
+                </p>
+                <a
+                  href="https://hackclub.com/slack/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary mt-1"
                 >
-                  {card.icon}
-                </div>
+                  Join the Hack Club Slack
+                </a>
+              </div>
+            )}
 
-                <div>
-                  <h3
-                    className="font-heading text-hc-dark text-xl font-extrabold leading-snug"
-                    style={{ fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-                  >
-                    {card.title}
-                  </h3>
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed mt-2">
-                    {card.description}
-                  </p>
+            {soonPrograms.length > 0 && (
+              <div className="mt-14">
+                <SectionHeading eyebrow="Coming up" title="Starting soon" />
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {soonPrograms.map(p => (
+                    <PublicProgramCard key={p.id} program={p} variant="soon" />
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
+        </section>
 
-          <div className="flex justify-center mt-12">
-            <Link
-              href="/dashboard"
-              className="bg-hc-red text-white px-8 py-3 rounded-xl font-bold text-base hover:bg-red-600 transition-colors"
-              style={{
-                fontFamily: 'var(--font-recursive)',
-                boxShadow: '0 4px 8px rgba(236,55,80,0.4)',
-              }}
-            >
-              View Programs →
-            </Link>
+        {/* --------------------------------------------------------- How it works */}
+        <section className="grid-bg border-b border-gray-200/70">
+          <div className="mx-auto w-full max-w-5xl px-6 py-16">
+            <SectionHeading eyebrow="How it works" title="Three steps, start to mailbox" />
+
+            <ol className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-10">
+              {STEPS.map((step, i) => (
+                <li key={step.title} className="flex gap-4">
+                  <span
+                    className="font-heading flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white"
+                    style={{ backgroundColor: step.color }}
+                    aria-hidden="true"
+                  >
+                    {i + 1}
+                  </span>
+                  <div>
+                    <h3 className="font-display text-lg leading-snug font-bold text-hc-dark">
+                      {step.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-gray-500">{step.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------------ Why smol */}
+        <section className="border-b border-gray-200/70 bg-white">
+          <div className="mx-auto w-full max-w-5xl px-6 py-16">
+            <SectionHeading eyebrow="Why bother" title="What every smol gives you" />
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {PERKS.map(perk => (
+                <div
+                  key={perk.title}
+                  className="card flex flex-col gap-4 p-6"
+                  style={{
+                    borderColor: `${perk.color}33`,
+                    boxShadow: `0 1px 2px rgba(17,24,39,0.04), 0 6px 20px ${perk.color}14`,
+                  }}
+                >
+                  <div
+                    className="flex h-14 w-14 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: `${perk.color}1a`, color: perk.color }}
+                  >
+                    {perk.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-display text-xl leading-snug font-extrabold text-hc-dark">
+                      {perk.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-500">{perk.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------------- Run your own */}
+        <section id="run-your-own" className="grid-bg scroll-mt-20">
+          <div className="mx-auto w-full max-w-3xl px-6 py-20 text-center">
+            <span className="text-xs font-bold tracking-widest text-hc-red uppercase">
+              For organizers
+            </span>
+            <h2 className="font-display mt-2 text-2xl font-bold text-hc-dark sm:text-3xl">
+              Got an idea for a smol?
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl leading-relaxed text-gray-600">
+              Anyone in the Hack Club Slack can run one. Tell us the theme, the
+              dates, and the reward — we&apos;ll set up the Slack channel, the
+              site, the repo, the submission form, and the finance account. You
+              just run the program.
+            </p>
+            <div className="mt-7 flex justify-center">
+              {session ? (
+                <Link href="/programs/new" className="btn btn-primary btn-lg">
+                  Start a smol
+                </Link>
+              ) : (
+                <LoginButton>Log in and pitch one</LoginButton>
+              )}
+            </div>
+            <p className="mt-4 text-xs text-gray-400">
+              Programs go through a quick review before they go live.
+            </p>
           </div>
         </section>
       </main>
+
+      <Footer />
     </div>
   )
 }

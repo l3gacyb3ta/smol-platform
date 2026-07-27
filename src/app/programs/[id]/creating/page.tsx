@@ -4,78 +4,71 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { CheckIcon, CloseIcon, SpinnerIcon } from '@/components/Icons'
 import type { CreationStep } from '@/lib/types'
 
 function StepRow({ step }: { step: CreationStep }) {
-  const isDone = step.status === 'done'
-  const isInProgress = step.status === 'in_progress'
-  const isPending = step.status === 'pending'
-  const isError = step.status === 'error'
+  const { status } = step
+  const isDone = status === 'done'
+  const isInProgress = status === 'in_progress'
+  const isError = status === 'error'
+
+  const rowTone = isInProgress
+    ? 'bg-rose-50/70 border-rose-100'
+    : isError
+      ? 'bg-rose-50 border-rose-200'
+      : 'border-transparent'
 
   return (
-    <div
-      className={`flex items-center gap-3 py-2 px-3 rounded-xl transition-all ${isInProgress ? 'bg-red-50 border border-red-100' : isError ? 'bg-red-50 border border-red-200' : ''}`}
-    >
-      {/* Status icon */}
+    <div className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${rowTone}`}>
       <div
-        className="w-6 h-6 rounded-xl flex items-center justify-center shrink-0"
-        style={{
-          backgroundColor: isDone ? '#d1fae5' : isInProgress ? '#ec3750' : isError ? '#fecdd3' : '#f3f4f6',
-        }}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+          isDone
+            ? 'bg-emerald-100 text-emerald-700'
+            : isInProgress
+              ? 'bg-hc-red text-white'
+              : isError
+                ? 'bg-rose-200 text-rose-800'
+                : 'bg-gray-100 text-gray-400'
+        }`}
       >
-        {isDone && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        )}
-        {isInProgress && (
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"
-            className="animate-spin-slow"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
-        )}
-        {isError && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#991b1b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        )}
-        {isPending && (
-          <div className="w-2 h-2 rounded-full bg-gray-300" />
-        )}
+        {isDone && <CheckIcon size={12} />}
+        {isInProgress && <SpinnerIcon size={12} />}
+        {isError && <CloseIcon size={12} />}
+        {status === 'pending' && <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />}
       </div>
 
-      {/* Label */}
-      <span className="flex-1 text-sm text-hc-dark">{step.label}</span>
+      <span className="flex-1 text-sm font-medium text-hc-dark">{step.label}</span>
 
-      {/* Status pill */}
-      {isDone && (
-        <span
-          className="text-xs font-medium px-2.5 py-1 rounded-full"
-          style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0' }}
-        >
-          Done
-        </span>
-      )}
+      {isDone && <span className="badge badge-green">Done</span>}
       {isInProgress && (
-        <span className="text-xs font-medium px-2.5 py-1 rounded-full text-white" style={{ backgroundColor: '#ec3750' }}>
-          In progress...
-        </span>
+        <span className="badge border-transparent bg-hc-red text-white">Working…</span>
       )}
-      {isError && (
-        <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
-          Failed
-        </span>
-      )}
-      {isPending && (
-        <span
-          className="text-xs font-medium px-2.5 py-1 rounded-full text-gray-500"
-          style={{ background: '#f3f4f6', border: '1px solid #e5e7eb' }}
+      {isError && <span className="badge badge-red">Failed</span>}
+      {status === 'pending' && <span className="badge badge-gray">Waiting</span>}
+    </div>
+  )
+}
+
+function Shell({
+  children,
+  tone = 'neutral',
+}: {
+  children: React.ReactNode
+  tone?: 'neutral' | 'error'
+}) {
+  return (
+    <div className="grid-bg flex min-h-screen flex-col">
+      <Navbar variant="admin" />
+      <main className="flex flex-1 items-start justify-center px-4 py-10 sm:py-16">
+        <div
+          className={`panel w-full max-w-xl px-6 py-10 sm:px-12 ${
+            tone === 'error' ? 'border-rose-200' : ''
+          }`}
         >
-          Pending
-        </span>
-      )}
+          {children}
+        </div>
+      </main>
     </div>
   )
 }
@@ -139,170 +132,170 @@ export default function CreatingPage() {
 
   const doneCount = steps.filter(s => s.status === 'done').length
   const total = steps.length
-  const waitingOnAdmin = steps.some(s => (s.id === 'dns' || s.id === 'hcb') && s.status === 'pending')
+  const waitingOnAdmin = steps.some(
+    s => (s.id === 'dns' || s.id === 'hcb') && s.status === 'pending'
+  )
+
+  const programLink = (
+    <Link
+      href={`/programs/${params.id}`}
+      className="font-semibold text-gray-500 underline hover:text-hc-red"
+    >
+      program page
+    </Link>
+  )
 
   if (phase === 'waiting') {
     return (
-      <div className="min-h-screen flex flex-col grid-bg">
-        <Navbar variant="admin" />
-        <main className="flex-1 flex items-center justify-center py-16 px-4">
-          <div
-            className="bg-white rounded-3xl w-full max-w-xl px-14 pt-12 pb-14 flex flex-col items-center gap-4 text-center"
-            style={{ border: '1px solid #e5e7eb', boxShadow: '0 16px 24px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.1)' }}
-          >
-            <div className="text-4xl">⏳</div>
-            <h1
-              className="text-hc-dark text-2xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-            >
-              Waiting for approval
-            </h1>
-            <p className="text-gray-500 text-sm max-w-sm">
-              Your program is under review. Once a Hack Club admin accepts it, spin-up will begin automatically and this page will update.
-            </p>
-            <p className="text-gray-400 text-xs mt-2">This page checks for updates every few seconds.</p>
-            <p className="text-gray-400 text-xs max-w-sm">
-              You can safely close this page — nothing is lost. Return to your{' '}
-              <Link href={`/programs/${params.id}`} className="font-semibold text-gray-500 underline hover:text-gray-700">
-                program page
-              </Link>{' '}
-              anytime to pick up where you left off.
-            </p>
-          </div>
-        </main>
-      </div>
+      <Shell>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <span className="text-4xl">⏳</span>
+          <h1 className="font-display text-2xl font-extrabold text-hc-dark">
+            Waiting on review
+          </h1>
+          <p className="max-w-sm text-sm leading-relaxed text-gray-500">
+            A Hack Club admin is looking at your pitch. The moment they accept it,
+            spin-up starts and this page updates itself.
+          </p>
+          <p className="max-w-sm text-xs leading-relaxed text-gray-400">
+            Safe to close — nothing is lost. Come back to your {programLink} any time.
+          </p>
+        </div>
+      </Shell>
     )
   }
 
   if (phase === 'error') {
     const isSlackError = errorStep === 'slack'
     const isGithubError = errorStep === 'github'
-    const isNameTaken = errorMessage.includes('name_taken') || errorMessage.includes('already exists')
-    const errorHint = isSlackError && isNameTaken
-      ? `That Slack channel name is already taken. Pick a different one and we'll retry.`
-      : isGithubError && isNameTaken
-      ? `A repo for that subdomain already exists on GitHub. Enter a different subdomain and we'll retry with a fresh repo.`
-      : `Something went wrong: ${errorMessage}`
+    const isNameTaken =
+      errorMessage.includes('name_taken') || errorMessage.includes('already exists')
+
+    const errorHint =
+      isSlackError && isNameTaken
+        ? 'That Slack channel name is already in use. Pick a different one and we’ll pick up where we left off.'
+        : isGithubError && isNameTaken
+          ? 'A repo with that name already exists on GitHub. Choose a different website address and we’ll retry with a fresh repo.'
+          : `Spin-up stopped with: ${errorMessage}`
 
     // Both recoverable errors are fixed by changing a slug and retrying.
     const fixField = isSlackError
       ? { label: 'New Slack channel name', placeholder: 'new-channel-name' }
       : isGithubError
-      ? { label: 'New subdomain', placeholder: 'new-subdomain' }
-      : null
+        ? { label: 'New website address', placeholder: 'new-subdomain' }
+        : null
 
     return (
-      <div className="min-h-screen flex flex-col grid-bg">
-        <Navbar variant="admin" />
-        <main className="flex-1 flex items-center justify-center py-16 px-4">
-          <div
-            className="bg-white rounded-3xl w-full max-w-xl px-14 pt-12 pb-14 flex flex-col gap-6"
-            style={{ border: '1px solid #fecdd3', boxShadow: '0 16px 24px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.1)' }}
-          >
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="text-3xl">⚠️</div>
-              <h1
-                className="text-hc-dark text-2xl font-extrabold"
-                style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-              >
-                Spin-up hit a snag
-              </h1>
-              <p className="text-gray-500 text-sm">{errorHint}</p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {steps.map(step => <StepRow key={step.id} step={step} />)}
-            </div>
-
-            <form onSubmit={handleRetry} className="flex flex-col gap-3 pt-2 border-t border-gray-100">
-              {fixField && (
-                <>
-                  <label className="text-sm font-semibold text-gray-700">{fixField.label}</label>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
-                    placeholder={fixField.placeholder}
-                    value={fixValue}
-                    onChange={e => setFixValue(e.target.value.replace(/[^a-z0-9-]/g, ''))}
-                    required
-                  />
-                </>
-              )}
-              <button
-                type="submit"
-                disabled={retrying || (!!fixField && !fixValue)}
-                className="bg-hc-red text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-red-600 disabled:opacity-50 transition-colors"
-              >
-                {retrying ? 'Retrying…' : 'Retry spin-up →'}
-              </button>
-            </form>
+      <Shell tone="error">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="text-3xl">⚠️</span>
+            <h1 className="font-display text-2xl font-extrabold text-hc-dark">
+              Spin-up hit a snag
+            </h1>
+            <p className="text-sm leading-relaxed text-gray-500">{errorHint}</p>
           </div>
-        </main>
-      </div>
+
+          <div className="flex flex-col gap-1.5">
+            {steps.map(step => (
+              <StepRow key={step.id} step={step} />
+            ))}
+          </div>
+
+          <form onSubmit={handleRetry} className="flex flex-col gap-3 border-t border-gray-100 pt-5">
+            {fixField && (
+              <>
+                <label htmlFor="fix" className="field-label">
+                  {fixField.label}
+                </label>
+                <input
+                  id="fix"
+                  type="text"
+                  className="input"
+                  placeholder={fixField.placeholder}
+                  value={fixValue}
+                  onChange={e =>
+                    setFixValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                  }
+                  required
+                />
+              </>
+            )}
+            <button
+              type="submit"
+              disabled={retrying || (!!fixField && !fixValue)}
+              className="btn btn-primary"
+            >
+              {retrying ? 'Retrying…' : 'Retry spin-up'}
+            </button>
+          </form>
+        </div>
+      </Shell>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col grid-bg">
-      <Navbar variant="admin" />
+    <Shell>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <h1 className="font-display text-2xl font-extrabold text-hc-dark">
+            {phase === 'done' ? 'Your smol is ready' : 'Setting up your smol'}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {phase === 'done'
+              ? 'Everything is provisioned — taking you to the program now.'
+              : 'Creating everything your program needs. Hang tight.'}
+          </p>
+        </div>
 
-      <main className="flex-1 flex items-center justify-center py-16 px-4">
-        <div
-          className="bg-white rounded-3xl w-full max-w-xl px-14 pt-12 pb-14 flex flex-col gap-6"
-          style={{ border: '1px solid #e5e7eb', boxShadow: '0 16px 24px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.1)' }}
-        >
-          {/* Header */}
-          <div className="flex flex-col items-center gap-3 text-center">
-            <h1
-              className="text-hc-dark text-2xl font-extrabold"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-            >
-              Setting up your Smol...
-            </h1>
-            <p className="text-gray-500 text-sm">
-              {`We're creating everything you need — hang tight!`}
-            </p>
+        <hr className="border-gray-100" />
+
+        {phase === 'loading' ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
+            <SpinnerIcon size={14} />
+            Checking progress
           </div>
-
-          <hr className="border-gray-100" />
-
-          {/* Steps */}
-          {phase === 'loading' ? (
-            <div className="text-center text-gray-400 text-sm py-4">Loading...</div>
-          ) : (
-            <div className="flex flex-col gap-3">
+        ) : (
+          <>
+            <div className="flex flex-col gap-1.5">
               {steps.map(step => (
                 <StepRow key={step.id} step={step} />
               ))}
             </div>
-          )}
 
-          {/* Waiting on a manual admin step (DNS / HCB) */}
-          {phase !== 'loading' && waitingOnAdmin && (
-            <p className="text-center text-xs text-amber-600">
-              Some steps are being set up by a smol admin — this can take a little while.
-            </p>
-          )}
+            {total > 0 && (
+              <div className="flex flex-col gap-2">
+                <div
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100"
+                  role="progressbar"
+                  aria-valuenow={doneCount}
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                >
+                  <div
+                    className="h-full rounded-full bg-hc-red transition-all duration-500"
+                    style={{ width: `${(doneCount / total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-center text-xs font-semibold text-gray-400">
+                  {doneCount} of {total} steps done
+                </p>
+              </div>
+            )}
 
-          {/* Progress */}
-          {phase !== 'loading' && (
+            {waitingOnAdmin && (
+              <p className="text-center text-xs text-amber-600">
+                A couple of steps are handled by a smol admin by hand — those can take a
+                while.
+              </p>
+            )}
+
             <p className="text-center text-xs text-gray-400">
-              {doneCount} of {total} steps complete
+              Safe to close — reopen your {programLink} any time to check progress.
             </p>
-          )}
-
-          {/* Safe to leave */}
-          {phase !== 'loading' && (
-            <p className="text-center text-xs text-gray-400">
-              Safe to close — reopen your{' '}
-              <Link href={`/programs/${params.id}`} className="font-semibold text-gray-500 underline hover:text-gray-700">
-                program page
-              </Link>{' '}
-              anytime to check progress.
-            </p>
-          )}
-        </div>
-      </main>
-    </div>
+          </>
+        )}
+      </div>
+    </Shell>
   )
 }

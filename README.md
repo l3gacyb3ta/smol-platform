@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# smol
 
-## Getting Started
+The platform behind [smol.hackclub.com](https://smol.hackclub.com) — small
+[You Ship We Ship](https://ysws.hackclub.com) programs from Hack Club. Someone
+pitches a tiny build challenge, we spin up everything it needs, and teenagers who
+ship get something real in the mail.
 
-First, run the development server:
+Two audiences, one app:
+
+- **Builders** land on the public homepage to see which programs are open.
+- **Organizers** log in with their Hack Club account to pitch a program, watch it
+  get provisioned, and review the submissions that come in.
+
+## Running it locally
 
 ```bash
-npm run dev
-# or
+yarn install
+cp .env.example .env.local   # then fill it in
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [localhost:3000](http://localhost:3000). Everything except the homepage
+requires a Hack Club login, so you'll need real OIDC credentials to get past the
+front door.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+yarn build   # production build
+yarn lint    # eslint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment
 
-## Learn More
+Every value lives in `.env.local`; see `.env.example` for the full list.
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | What it's for |
+| --- | --- |
+| `HACKCLUB_CLIENT_ID` / `HACKCLUB_CLIENT_SECRET` | Hack Club OIDC app, registered at [auth.hackclub.com](https://auth.hackclub.com) |
+| `AUTH_SECRET` | NextAuth session signing — `openssl rand -hex 32` |
+| `AIRTABLE_API_KEY` / `AIRTABLE_BASE_ID` | Airtable is the datastore |
+| `AIRTABLE_TABLE_NAME` | Programs table, defaults to `Programs` |
+| `AIRTABLE_SUBMISSIONS_TABLE` | Submissions table, defaults to `Submissions` |
+| `SLACK_BOT_TOKEN` | Bot token with `channels:manage` for creating/archiving channels |
+| `SLACK_CHANNEL_CREATION` | Set to `enabled` to let spin-up create real channels. Off by default — see below |
+| `GITHUB_TOKEN` | Fine-grained PAT that can generate repos in the `hackclub-smol` org |
+| `ADMIN_SLACK_IDS` | Comma-separated Slack user IDs who can accept and review programs |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How a program gets made
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Pitch** — an organizer fills in `/programs/new`. The program lands in
+   Airtable as `pending`.
+2. **Review** — an admin (someone in `ADMIN_SLACK_IDS`) accepts it from the
+   program page and picks a software or hardware template. Status becomes
+   `accepted`.
+3. **Spin-up** — `/programs/[id]/creating` polls
+   `GET /api/programs/[id]/status`, which advances the steps below.
 
-## Deploy on Vercel
+   | Step | How it happens |
+   | --- | --- |
+   | Slack channel | Real API call, but only when `SLACK_CHANNEL_CREATION=enabled` |
+   | GitHub repo | Generated from the chosen template, `smol.json` written, organizer added as admin |
+   | DNS | By hand. Done once an admin records the URL on the program page |
+   | HCB org | By hand. Same — recording the URL marks it done |
+   | Unified database + Fillout form | **Still simulated.** These steps report progress on a timer; nothing is actually created yet |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. **Live** — an Airtable automation flips the program to `active` on its start
+   date, which is when it appears on the public homepage.
+5. **Submissions** — entries arrive in the Submissions table and get reviewed at
+   `/programs/[id]/submissions`. Reviewers can approve, reject, or approve with an
+   adjusted hour count. Contact details are stripped for non-admins.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Two things to know before trusting the spin-up screen
+
+- **Slack channel creation is off by default.** With `SLACK_CHANNEL_CREATION`
+  unset, the step is labelled "Slack channel (created by an admin)" and someone
+  makes the channel by hand. Turning it on means every accepted program creates a
+  real channel in the Hack Club workspace.
+- **The unified-database and Fillout steps are fake.** They advance on a timer to
+  fill out the flow. Wire them to real integrations before treating a "done"
+  spin-up as complete.
+
+## Layout
+
+```
+src/
+  app/
+    page.tsx                    public homepage
+    dashboard/                  program list (auth required)
+    programs/new/               pitch form
+    programs/[id]/              detail, edit, spin-up log, submissions
+    api/                        route handlers
+    error.tsx, not-found.tsx    error boundaries
+    icon.svg, opengraph-image.tsx, robots.ts, sitemap.ts
+  components/                   Navbar, Footer, ProgramCard, StatusBadge, Icons…
+  lib/
+    airtable.ts                 programs
+    airtable-submissions.ts     submissions + PII stripping
+    permissions.ts              admin allowlist, per-program access
+    slack.ts                    channel create/archive
+    format.ts, constants.ts     dates, palette, domains
+  auth.ts                       NextAuth + Hack Club OIDC
+  proxy.ts                      redirects anonymous users away from private routes
+```
+
+Styling is Tailwind v4. Shared type styles, buttons, cards, inputs, and badges are
+defined once as component classes in `src/app/globals.css` — reach for
+`.btn-primary`, `.card`, `.input`, `.badge-green`, `.font-display` and friends
+rather than re-deriving them inline.
+
+## Stack
+
+Next.js 16 (App Router) · React 19 · Tailwind CSS v4 · NextAuth v5 · Airtable
+
+> Heads up: this repo tracks a Next.js version with breaking changes from what you
+> may be used to. The bundled docs in `node_modules/next/dist/docs/` are the source
+> of truth — for example, error boundaries take `unstable_retry`, not `reset`.

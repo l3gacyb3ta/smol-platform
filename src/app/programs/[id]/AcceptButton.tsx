@@ -8,8 +8,19 @@ const TEMPLATES = [
     id: 'smol-template-sw',
     label: 'Software',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
       </svg>
     ),
   },
@@ -17,12 +28,27 @@ const TEMPLATES = [
     id: 'smol-template-hw',
     label: 'Hardware',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
-        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
-        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
-        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
-        <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <rect x="9" y="9" width="6" height="6" />
+        <line x1="9" y1="1" x2="9" y2="4" />
+        <line x1="15" y1="1" x2="15" y2="4" />
+        <line x1="9" y1="20" x2="9" y2="23" />
+        <line x1="15" y1="20" x2="15" y2="23" />
+        <line x1="20" y1="9" x2="23" y2="9" />
+        <line x1="20" y1="14" x2="23" y2="14" />
+        <line x1="1" y1="9" x2="4" y2="9" />
+        <line x1="1" y1="14" x2="4" y2="14" />
       </svg>
     ),
   },
@@ -45,15 +71,15 @@ export default function AcceptButton({ programId }: { programId: string }) {
 
   if (picking) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-amber-700 mr-1">Pick template:</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-amber-800">Which template?</span>
         {TEMPLATES.map(t => (
           <button
             key={t.id}
             onClick={() => handleAccept(t.id)}
             disabled={accepting}
             title={t.id}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 bg-white hover:border-green-400 hover:bg-green-50 hover:text-green-800 transition-all text-xs font-bold text-amber-800 disabled:opacity-50"
+            className="btn btn-sm border border-amber-300 bg-white text-amber-900 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
           >
             {t.icon}
             {t.label}
@@ -61,7 +87,8 @@ export default function AcceptButton({ programId }: { programId: string }) {
         ))}
         <button
           onClick={() => setPicking(false)}
-          className="text-xs text-amber-500 hover:text-amber-700 px-1 transition-colors"
+          disabled={accepting}
+          className="cursor-pointer px-1 text-xs font-semibold text-amber-600 transition-colors hover:text-amber-800"
         >
           Cancel
         </button>
@@ -72,10 +99,9 @@ export default function AcceptButton({ programId }: { programId: string }) {
   return (
     <button
       onClick={() => setPicking(true)}
-      className="bg-green-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-green-600 transition-colors"
-      style={{ fontFamily: 'var(--font-recursive)' }}
+      className="btn btn-sm bg-hc-green text-white hover:brightness-95"
     >
-      Accept Program ✓
+      Accept program
     </button>
   )
 }

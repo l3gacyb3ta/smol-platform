@@ -19,7 +19,7 @@ async function authorize(id: string) {
 // resources, error state, template, and creator identity fields (which feed
 // privileged server-side provisioning) — is admin-only. Using an allow-list
 // avoids re-introducing gaps whenever a new field is added.
-const USER_EDITABLE_FIELDS = ['name', 'description', 'slackChannel', 'subdomain', 'startDate', 'endDate', 'keyColor'] as const
+const USER_EDITABLE_FIELDS = ['name', 'description', 'weShip', 'slackChannel', 'subdomain', 'startDate', 'endDate', 'keyColor'] as const
 
 function stripPrivilegedFields(body: Record<string, unknown>, session: Session | null) {
   if (isAdmin(session?.user?.slackId)) return body

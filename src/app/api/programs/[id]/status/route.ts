@@ -27,6 +27,14 @@ const MANUAL_STEPS = [
   { id: 'hcb', label: 'Creating HCB organization',   resource: 'hcb' as const },
 ]
 
+// Creating the channel hits the real workspace, so it stays off unless
+// explicitly enabled. With it off the channel is made by hand and the step is
+// labelled to say so, rather than reporting work nobody did.
+const SLACK_CREATION_ENABLED = process.env.SLACK_CHANNEL_CREATION === 'enabled'
+const SLACK_LABEL = SLACK_CREATION_ENABLED
+  ? 'Creating Slack channel'
+  : 'Slack channel (created by an admin)'
+
 // Airtable (unified database) and Fillout aren't built yet — still simulated.
 const STUB_STEPS = [
   { id: 'airtable', label: 'Adding to unified database' },
@@ -52,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (program.status === 'active') {
     const steps: CreationStep[] = [
-      { id: 'slack',  label: 'Creating Slack channel',      status: 'done' },
+      { id: 'slack',  label: SLACK_LABEL,                    status: 'done' },
       { id: 'github', label: 'Creating GitHub repository',  status: 'done' },
       ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'done' as const })),
       ...STUB_STEPS.map(s => ({ ...s, status: 'done' as const })),
@@ -62,7 +70,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   // status === 'accepted' — work through steps
 
-  const slackStep:  CreationStep = { id: 'slack',  label: 'Creating Slack channel',     status: 'pending' }
+  const slackStep:  CreationStep = { id: 'slack',  label: SLACK_LABEL,                  status: 'pending' }
   const githubStep: CreationStep = { id: 'github', label: 'Creating GitHub repository', status: 'pending' }
 
   // If a previous attempt left an error, surface it immediately
@@ -81,37 +89,34 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 
   // Step 1: Slack
-  if (false) {
-    if (program!.resources.slack) {
-      slackStep.status = 'done'
-    } else {
-      slackStep.status = 'in_progress'
-      try {
-        const channel = await createChannel(program!.slackChannel)
-        await updateProgram(id, {
-          resources: { ...program!.resources, slack: channel.url },
-          errorStep: null,
-          errorMessage: null,
-        })
-        slackStep.status = 'done'
-      } catch (err) {
-        const message = String(err)
-        console.error('Slack channel creation failed:', message)
-        await updateProgram(id, { errorStep: 'slack', errorMessage: message })
-        return NextResponse.json({
-          phase: 'error',
-          errorStep: 'slack',
-          errorMessage: message,
-          steps: [
-            { ...slackStep, status: 'error' },
-            githubStep,
-            ...STUB_STEPS.map(s => ({ ...s, status: 'pending' as const })),
-          ],
-        })
-      }
-    }
-  } else {
+  if (!SLACK_CREATION_ENABLED || program.resources.slack) {
     slackStep.status = 'done'
+  } else {
+    slackStep.status = 'in_progress'
+    try {
+      const channel = await createChannel(program.slackChannel)
+      await updateProgram(id, {
+        resources: { ...program.resources, slack: channel.url },
+        errorStep: null,
+        errorMessage: null,
+      })
+      slackStep.status = 'done'
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('Slack channel creation failed:', message)
+      await updateProgram(id, { errorStep: 'slack', errorMessage: message })
+      return NextResponse.json({
+        phase: 'error',
+        errorStep: 'slack',
+        errorMessage: message,
+        steps: [
+          { ...slackStep, status: 'error' },
+          githubStep,
+          ...MANUAL_STEPS.map(s => ({ id: s.id, label: s.label, status: 'pending' as const })),
+          ...STUB_STEPS.map(s => ({ ...s, status: 'pending' as const })),
+        ],
+      })
+    }
   }
 
   // Step 2: GitHub

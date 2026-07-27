@@ -2,9 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
-
-const KEY_COLORS = ['#ec3750', '#5bc0de', '#f7b731', '#20c997', '#7950f2', '#ff6b6b', '#339af0']
+import KeyColorPicker from '@/components/KeyColorPicker'
+import PitchFields from '@/components/PitchFields'
+import { CheckIcon, CloseIcon, SpinnerIcon } from '@/components/Icons'
+import { ROOT_DOMAIN } from '@/lib/constants'
+import { composePitch } from '@/lib/pitch'
 
 type Availability = 'idle' | 'checking' | 'available' | 'taken'
 
@@ -13,31 +17,32 @@ function AvailabilityBadge({ state }: { state: Availability }) {
   if (state === 'checking') {
     return (
       <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-spin-slow">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-        Checking…
+        <SpinnerIcon size={12} />
+        Checking
       </span>
     )
   }
   if (state === 'available') {
     return (
-      <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        Available
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+        <CheckIcon size={12} />
+        Free
       </span>
     )
   }
   return (
-    <span className="flex items-center gap-1.5 text-xs font-semibold text-red-500">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
+    <span className="flex items-center gap-1.5 text-xs font-semibold text-hc-red">
+      <CloseIcon size={12} />
       Taken
     </span>
   )
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 export default function NewProgramPage() {
@@ -46,7 +51,8 @@ export default function NewProgramPage() {
   const [error, setError] = useState('')
 
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const [youShip, setYouShip] = useState('')
+  const [weShip, setWeShip] = useState('')
   const [slackChannel, setSlackChannel] = useState('')
   const [subdomain, setSubdomain] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -63,9 +69,13 @@ export default function NewProgramPage() {
   const checkSubdomain = useCallback(async (sub: string) => {
     if (!sub) return setSubdomainAvailability('idle')
     setSubdomainAvailability('checking')
-    const res = await fetch(`/api/programs/check?subdomain=${encodeURIComponent(sub)}`)
-    const data = await res.json()
-    setSubdomainAvailability(data.available ? 'available' : 'taken')
+    try {
+      const res = await fetch(`/api/programs/check?subdomain=${encodeURIComponent(sub)}`)
+      const data = await res.json()
+      setSubdomainAvailability(data.available ? 'available' : 'taken')
+    } catch {
+      setSubdomainAvailability('idle')
+    }
   }, [])
 
   useEffect(() => {
@@ -77,136 +87,167 @@ export default function NewProgramPage() {
   // edited by hand. Derived on change rather than in an effect.
   function handleNameChange(value: string) {
     setName(value)
-    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const slug = slugify(value)
     if (!channelDirty) setSlackChannel(slug)
     if (!subdomainDirty) setSubdomain(slug)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (endDate && startDate && endDate < startDate) {
+      setError('The end date needs to be on or after the start date.')
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
       const res = await fetch('/api/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, slackChannel, subdomain, startDate, endDate, keyColor, creatorGithubUsername: githubUsername || undefined }),
+        body: JSON.stringify({
+          name,
+          // The full sentence is what gets rendered; `weShip` keeps the reward
+          // half on its own so it's queryable without parsing prose.
+          description: composePitch(youShip, weShip),
+          weShip: weShip.trim(),
+          slackChannel,
+          subdomain,
+          startDate,
+          endDate,
+          keyColor,
+          creatorGithubUsername: githubUsername || undefined,
+        }),
       })
       if (!res.ok) throw new Error('Failed to create program')
       const program = await res.json()
       router.push(`/programs/${program.id}/creating`)
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError('Something went wrong on our end. Give it another go.')
       setSubmitting(false)
     }
   }
 
-  const inputClass = "w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
-
   return (
-    <div className="min-h-screen flex flex-col grid-bg">
+    <div className="grid-bg flex min-h-screen flex-col">
       <Navbar variant="admin" />
 
-      <main className="flex-1 flex items-start justify-center py-12 px-4">
-        <div
-          className="bg-white rounded-3xl w-full max-w-2xl px-14 pt-12 pb-14"
-          style={{ border: '1px solid #e5e7eb', boxShadow: '0 16px 24px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.1)' }}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+        <Link
+          href="/dashboard"
+          className="text-sm font-semibold text-gray-500 transition-colors hover:text-hc-red"
         >
-          {/* Header */}
-          <div className="flex flex-col items-center gap-2 mb-8">
-            <span
-              className="bg-hc-red text-white text-xs font-bold px-4 py-1.5 rounded-full"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-            >
+          ← All programs
+        </Link>
+
+        <div className="panel mt-4 px-6 py-10 sm:px-12">
+          <div className="mb-8 flex flex-col items-center gap-2 text-center">
+            <span className="font-heading rounded-full bg-hc-red px-4 py-1.5 text-xs font-bold text-white">
               A You Ship We Ship project
             </span>
-            <h1
-              className="text-hc-dark text-3xl font-extrabold text-center"
-              style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 0, "CRSV" 0, "MONO" 0' }}
-            >
-              Unified Smol Program Form
-            </h1>
-            <p className="text-gray-500 text-sm text-center">Submit your program details below to get started.</p>
+            <h1 className="font-display text-3xl font-extrabold text-hc-dark">Pitch a smol</h1>
+            <p className="max-w-sm text-sm leading-relaxed text-gray-500">
+              Tell us what people build and what they get for it. We&apos;ll handle the
+              Slack channel, site, repo, form, and finances.
+            </p>
           </div>
 
-          <hr className="border-gray-100 mb-8" />
+          <hr className="mb-8 border-gray-100" />
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            {/* Preview row */}
-            <div className="flex items-center gap-2 flex-wrap text-sm justify-center text-gray-600 font-semibold">
-              <span>You ship</span>
-              <span className="bg-gray-50 border border-gray-200 rounded px-3 py-1 text-gray-400 text-xs min-w-20">
-                {name || 'a project'}
-              </span>
-              <span>, we ship</span>
-              <span className="bg-gray-50 border border-gray-200 rounded px-3 py-1 text-gray-400 text-xs min-w-20">
-                {description.split(' ').slice(0, 4).join(' ') || 'something cool'}
-              </span>
-              <span>!</span>
-            </div>
+            <PitchFields
+              youShip={youShip}
+              weShip={weShip}
+              onYouShipChange={setYouShip}
+              onWeShipChange={setWeShip}
+            />
 
-            {/* Program Name + Slack Channel */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">Program Name</label>
+                <label htmlFor="name" className="field-label">
+                  Program name
+                </label>
                 <input
+                  id="name"
                   type="text"
-                  className={inputClass}
-                  placeholder="e.g. Tea And Biscuits"
+                  className="input"
+                  placeholder="Tea and Biscuits"
                   value={name}
                   onChange={e => handleNameChange(e.target.value)}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">Slack Channel Name</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="#tea-and-biscuits"
-                  value={slackChannel}
-                  onChange={e => { setChannelDirty(true); setSlackChannel(e.target.value.replace(/[^a-z0-9-]/g, '')) }}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Subdomain */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700">Subdomain</label>
-              <div className="flex items-center bg-gray-50 border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-hc-red">
-                <input
-                  type="text"
-                  className="flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
-                  placeholder="tea-and-biscuits"
-                  value={subdomain}
-                  onChange={e => { setSubdomainDirty(true); setSubdomain(e.target.value.replace(/[^a-z0-9-]/g, '')) }}
-                  required
-                />
-                <span className="px-3 py-3 text-sm text-gray-400 border-l border-gray-200 bg-gray-50 shrink-0">.smol.hackclub.com</span>
-                <div className="px-3">
-                  <AvailabilityBadge state={subdomainAvailability} />
+                <label htmlFor="channel" className="field-label">
+                  Slack channel
+                </label>
+                <div className="input-group">
+                  <span className="input-affix border-r border-gray-200">#</span>
+                  <input
+                    id="channel"
+                    type="text"
+                    placeholder="tea-and-biscuits"
+                    value={slackChannel}
+                    onChange={e => {
+                      setChannelDirty(true)
+                      setSlackChannel(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                    }}
+                    required
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">Start Date</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="subdomain" className="field-label">
+                Website address
+              </label>
+              <div className="input-group">
                 <input
+                  id="subdomain"
+                  type="text"
+                  placeholder="tea-and-biscuits"
+                  value={subdomain}
+                  onChange={e => {
+                    setSubdomainDirty(true)
+                    setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                  }}
+                  required
+                  aria-describedby="subdomain-hint"
+                />
+                <span className="input-affix border-l border-gray-200">.{ROOT_DOMAIN}</span>
+                <span className="px-3">
+                  <AvailabilityBadge state={subdomainAvailability} />
+                </span>
+              </div>
+              <p id="subdomain-hint" className="field-hint">
+                Where your program&apos;s site will live. Lowercase letters, numbers, and
+                dashes.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="start" className="field-label">
+                  Start date
+                </label>
+                <input
+                  id="start"
                   type="date"
-                  className={inputClass}
+                  className="input"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">End Date</label>
+                <label htmlFor="end" className="field-label">
+                  End date
+                </label>
                 <input
+                  id="end"
                   type="date"
-                  className={inputClass}
+                  className="input"
+                  min={startDate || undefined}
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
                   required
@@ -214,79 +255,45 @@ export default function NewProgramPage() {
               </div>
             </div>
 
-            {/* Description */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700">Description</label>
-              <textarea
-                className={`${inputClass} resize-none`}
-                rows={3}
-                placeholder="You ship a website, we ship tea & biscuits"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* GitHub Username */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700">Your GitHub Username</label>
-              <div className="flex items-center bg-gray-50 border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-hc-red">
-                <span className="px-3 py-3 text-sm text-gray-400 border-r border-gray-200 bg-gray-50 shrink-0">github.com/</span>
+              <label htmlFor="github" className="field-label">
+                Your GitHub username
+              </label>
+              <div className="input-group">
+                <span className="input-affix border-r border-gray-200">github.com/</span>
                 <input
+                  id="github"
                   type="text"
-                  className="flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
                   placeholder="your-username"
                   value={githubUsername}
                   onChange={e => setGithubUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+                  aria-describedby="github-hint"
                 />
               </div>
-              <p className="text-xs text-gray-400">You&apos;ll be added as an admin to the generated repo.</p>
+              <p id="github-hint" className="field-hint">
+                Optional — we&apos;ll add you as an admin on the repo we generate.
+              </p>
             </div>
 
-            {/* Key Color */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-gray-700">Key color</label>
-              <div className="flex items-center gap-3">
-                <div className="flex gap-2">
-                  {KEY_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      className="w-8 h-8 rounded-lg transition-transform hover:scale-110 focus:outline-none"
-                      style={{
-                        backgroundColor: color,
-                        boxShadow: keyColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : undefined,
-                      }}
-                      onClick={() => setKeyColor(color)}
-                      title={color}
-                    />
-                  ))}
-                </div>
-                <div className="w-px h-8 bg-gray-200" />
-                <div
-                  className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
-                >
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: keyColor }} />
-                  <span className="text-sm font-medium text-gray-700">{keyColor.toUpperCase()}</span>
-                </div>
-              </div>
-            </div>
+            <KeyColorPicker value={keyColor} onChange={setKeyColor} />
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm font-semibold text-hc-red">
+                {error}
+              </p>
+            )}
 
-            {/* Submit */}
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 rounded-xl text-white font-bold text-base transition-opacity disabled:opacity-60"
-              style={{
-                backgroundColor: '#ec3750',
-                fontFamily: 'var(--font-recursive)',
-                boxShadow: '0 4px 8px rgba(236,55,80,0.4)',
-              }}
+              disabled={submitting || subdomainAvailability === 'taken'}
+              className="btn btn-primary btn-lg w-full"
             >
-              {submitting ? 'Creating your Smol...' : 'Submit →'}
+              {submitting ? 'Setting things up…' : 'Send it in'}
             </button>
+
+            <p className="text-center text-xs text-gray-400">
+              A Hack Club admin reviews every pitch before it goes live.
+            </p>
           </form>
         </div>
       </main>

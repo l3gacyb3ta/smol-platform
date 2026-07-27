@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { TrashIcon } from '@/components/Icons'
 
 interface Props {
   programId: string
@@ -53,90 +54,80 @@ export default function DeleteButton({ programId, programName, trigger, onSucces
       {trigger ? (
         <span onClick={() => setOpen(true)}>{trigger}</span>
       ) : (
-        <button
-          onClick={() => setOpen(true)}
-          className="bg-hc-red text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 transition-colors"
-          style={{ fontFamily: 'var(--font-recursive)' }}
-        >
-          Delete Program
+        <button onClick={() => setOpen(true)} className="btn btn-primary">
+          Delete program
         </button>
       )}
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) close() }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/45 p-4 backdrop-blur-sm"
+          onClick={e => {
+            if (e.target === e.currentTarget) close()
+          }}
         >
           <div
-            className="bg-white rounded-2xl p-7 flex flex-col gap-5 w-full max-w-md"
-            style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.18)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+            className="w-full max-w-md rounded-2xl bg-white p-7"
+            style={{ boxShadow: 'var(--shadow-modal)' }}
           >
-            {/* Header */}
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec3750" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/>
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                  </svg>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-hc-red">
+                  <TrashIcon size={16} strokeWidth={2.5} />
                 </span>
-                <h2
-                  className="text-hc-dark text-lg font-extrabold"
-                  style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
-                >
-                  Delete Program
+                <h2 id="delete-title" className="font-display text-lg font-extrabold text-hc-dark">
+                  Delete this program?
                 </h2>
               </div>
-              <p className="text-gray-500 text-sm leading-relaxed">
-                This will permanently delete <span className="font-semibold text-hc-dark">{programName}</span> and all associated data. This action cannot be undone.
+              <p className="text-sm leading-relaxed text-gray-500">
+                This removes <span className="font-semibold text-hc-dark">{programName}</span> and
+                everything recorded against it. There is no undo.
               </p>
             </div>
 
-            {/* Confirmation input */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700">
-                Type <span
-                  className="font-mono px-1.5 py-0.5 rounded text-sm"
-                  style={{ background: '#fef2f2', color: '#ec3750', border: '1px solid #fecdd3' }}
-                >{programName}</span> to confirm
+            <div className="mt-5 flex flex-col gap-2">
+              <label htmlFor="delete-confirm" className="field-label">
+                Type{' '}
+                <span className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 font-mono text-sm text-hc-red">
+                  {programName}
+                </span>{' '}
+                to confirm
               </label>
               <input
+                id="delete-confirm"
                 ref={inputRef}
                 type="text"
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleDelete() }}
+                onChange={e => setInputValue(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleDelete()
+                }}
                 placeholder={programName}
-                className="w-full border rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
+                autoComplete="off"
+                className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm font-medium outline-none transition-all"
                 style={{
-                  borderColor: inputValue.length > 0 ? (confirmed ? '#a7f3d0' : '#fecdd3') : '#e5e7eb',
-                  boxShadow: inputValue.length > 0 ? (confirmed ? '0 0 0 3px #d1fae5' : '0 0 0 3px #fee2e2') : 'none',
+                  borderColor: inputValue.length === 0 ? '#e5e7eb' : confirmed ? '#6ee7b7' : '#fda4af',
+                  boxShadow:
+                    inputValue.length === 0
+                      ? 'none'
+                      : `0 0 0 3px ${confirmed ? '#d1fae5' : '#ffe4e6'}`,
                 }}
               />
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={close}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 border border-gray-200 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={close} disabled={deleting} className="btn btn-secondary btn-sm">
+                Keep it
               </button>
               <button
                 onClick={handleDelete}
                 disabled={!confirmed || deleting}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-white transition-colors"
-                style={{
-                  backgroundColor: confirmed ? '#ec3750' : '#fca5a5',
-                  cursor: confirmed && !deleting ? 'pointer' : 'not-allowed',
-                }}
+                className="btn btn-primary btn-sm"
               >
-                {deleting ? 'Deleting…' : 'Delete Program'}
+                {deleting ? 'Deleting…' : 'Delete program'}
               </button>
             </div>
           </div>

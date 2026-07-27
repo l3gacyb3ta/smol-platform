@@ -13,6 +13,7 @@ function mapRecord(record: Airtable.Record<FieldSet>): Program {
     id: record.id,
     name: (f['Name'] as string) ?? '',
     description: (f['Description'] as string) ?? '',
+    weShip: (f['We Ship'] as string) || undefined,
     slackChannel: (f['Slack Channel'] as string) ?? '',
     subdomain: (f['Subdomain'] as string) ?? '',
     startDate: (f['Start Date'] as string) ?? '',
@@ -50,6 +51,7 @@ function mapInput(data: ProgramUpdate): FieldSet {
   const fields: FieldSet = {}
   if (data.name !== undefined)           fields['Name'] = data.name
   if (data.description !== undefined)    fields['Description'] = data.description
+  if (data.weShip !== undefined)         fields['We Ship'] = data.weShip
   if (data.slackChannel !== undefined)   fields['Slack Channel'] = data.slackChannel
   if (data.subdomain !== undefined)      fields['Subdomain'] = data.subdomain
   if (data.startDate !== undefined)      fields['Start Date'] = data.startDate

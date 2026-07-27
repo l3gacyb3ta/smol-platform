@@ -21,38 +21,57 @@ export default function ResourceLinkForm({
   const router = useRouter()
   const [url, setUrl] = useState('')
   const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!url) return
     setSaving(true)
-    await fetch(`/api/programs/${programId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resources: { [resourceKey]: url } }),
-    })
-    setSaving(false)
-    router.refresh()
+    setFailed(false)
+    try {
+      const res = await fetch(`/api/programs/${programId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resources: { [resourceKey]: url } }),
+      })
+      // Without this check a rejected write looks identical to a successful
+      // one: the field clears, the page refreshes, and nothing has changed.
+      if (!res.ok) throw new Error(`Save failed: ${res.status}`)
+      setUrl('')
+      router.refresh()
+    } catch {
+      setFailed(true)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSave} className="flex items-center gap-1.5 shrink-0">
-      <input
-        type="url"
-        required
-        value={url}
-        onChange={e => setUrl(e.target.value)}
-        placeholder={placeholder}
-        className="w-40 bg-gray-50 border border-gray-300 rounded-lg px-2 py-1 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hc-red focus:border-transparent transition"
-      />
-      <button
-        type="submit"
-        disabled={saving || !url}
-        className="text-xs font-bold text-white rounded-lg px-2.5 py-1 disabled:opacity-50 transition-colors"
-        style={{ backgroundColor: '#ec3750' }}
-      >
-        {saving ? '…' : 'Mark done'}
-      </button>
-    </form>
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <form onSubmit={handleSave} className="flex items-center gap-1.5">
+        <input
+          type="url"
+          required
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder={placeholder}
+          aria-label={`${resourceKey} URL`}
+          aria-invalid={failed}
+          className="input w-36 rounded-lg px-2 py-1 text-xs"
+        />
+        <button
+          type="submit"
+          disabled={saving || !url}
+          className="btn btn-sm btn-primary px-2.5 py-1"
+        >
+          {saving ? '…' : 'Save'}
+        </button>
+      </form>
+      {failed && (
+        <span role="alert" className="text-xs font-semibold text-hc-red">
+          Didn&apos;t save — check the field exists in Airtable.
+        </span>
+      )}
+    </div>
   )
 }

@@ -17,33 +17,37 @@ interface ProgramCardProps {
   className?: string
 }
 
+/**
+ * Shared shell for a program tile. The program's key colour shows up as a top
+ * strip and a faint tint in the border and shadow, so cards stay
+ * distinguishable at a glance without shouting.
+ */
 export function ProgramCard({ program, badge, children, className = '' }: ProgramCardProps) {
   return (
     <div
-      className={`bg-white rounded-2xl p-6 flex flex-col gap-4 ${className}`}
+      className={`card relative flex h-full flex-col overflow-hidden ${className}`}
       style={{
-        border: `1.5px solid ${program.keyColor}33`,
-        boxShadow: `0 4px 12px ${hexToRgba(program.keyColor, 0.1)}, 0 2px 4px rgba(0,0,0,0.06)`,
+        borderColor: hexToRgba(program.keyColor, 0.22),
+        boxShadow: `0 1px 2px rgba(17,24,39,0.04), 0 6px 20px ${hexToRgba(program.keyColor, 0.1)}`,
       }}
     >
-      <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: program.keyColor }} />
+      <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: program.keyColor }} />
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h3
-            className="text-hc-dark text-xl font-bold leading-tight"
-            style={{ fontFamily: 'var(--font-recursive)', fontVariationSettings: '"CASL" 1, "CRSV" 0.5, "MONO" 0' }}
-          >
-            {program.name}
-          </h3>
-          <p className="text-gray-500 text-sm font-medium leading-relaxed mt-1">
-            {program.description}
-          </p>
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-casual text-xl leading-tight font-bold text-hc-dark">
+              {program.name}
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-gray-500 line-clamp-2">
+              {program.description}
+            </p>
+          </div>
+          {badge != null && <div className="shrink-0">{badge}</div>}
         </div>
-        {badge != null && <div className="shrink-0">{badge}</div>}
-      </div>
 
-      {children}
+        {children}
+      </div>
     </div>
   )
 }
