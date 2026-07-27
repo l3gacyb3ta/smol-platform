@@ -2,10 +2,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
-import { getProgram } from '@/lib/airtable'
 import { getSubmissions, stripPII } from '@/lib/airtable-submissions'
-import { auth } from '@/auth'
-import { isAdmin, canAccessProgram, canAccessSubmissions } from '@/lib/permissions'
+import { isAdmin, canAccessSubmissions } from '@/lib/permissions'
+import { loadProgramForViewer } from '@/lib/program-access'
 import SubmissionsList from './SubmissionsList'
 
 export async function generateMetadata({
@@ -14,17 +13,16 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const program = await getProgram(id)
-  return { title: program ? `${program.name} submissions` : 'Submissions' }
+  const { program, allowed } = await loadProgramForViewer(id)
+  return { title: allowed && program ? `${program.name} submissions` : 'Submissions' }
 }
 
 export default async function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [program, session] = await Promise.all([getProgram(id), auth()])
-  if (!program) notFound()
+  const { program, session, allowed } = await loadProgramForViewer(id)
+  if (!program || !allowed) notFound()
 
   const slackId = session?.user?.slackId
-  if (!canAccessProgram(slackId, program)) notFound()
 
   // A program only owns its Slack channel once an admin has accepted it, and
   // that channel is the only thing tying submissions to a program. Until then

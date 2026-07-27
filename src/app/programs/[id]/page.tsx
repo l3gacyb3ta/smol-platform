@@ -13,8 +13,7 @@ import {
   PencilIcon,
   SlackIcon,
 } from '@/components/Icons'
-import { getProgram } from '@/lib/airtable'
-import { auth } from '@/auth'
+import { loadProgramForViewer } from '@/lib/program-access'
 import { isAdmin } from '@/lib/permissions'
 import { formatDate } from '@/lib/format'
 import { programHost, programUrl } from '@/lib/constants'
@@ -54,8 +53,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const program = await getProgram(id)
-  return { title: program?.name ?? 'Program' }
+  const { program, allowed } = await loadProgramForViewer(id)
+  // Never put the name in the title for someone who may not see the page.
+  return { title: allowed && program ? program.name : 'Program' }
 }
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -69,9 +69,12 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 
 export default async function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [program, session] = await Promise.all([getProgram(id), auth()])
+  const { program, session, allowed } = await loadProgramForViewer(id)
   if (!session) redirect('/')
-  if (!program) notFound()
+  // 404 rather than 403 for programs that exist but aren't yours — the page
+  // carries the creator's email and the HCB/Airtable resource URLs, and a
+  // distinct response would confirm which record IDs are real.
+  if (!program || !allowed) notFound()
 
   const userIsAdmin = isAdmin(session.user?.slackId)
   const canAccept = userIsAdmin && program.status === 'pending'

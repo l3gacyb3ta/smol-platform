@@ -2,9 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
-import { getProgram } from '@/lib/airtable'
-import { auth } from '@/auth'
-import { canAccessProgram } from '@/lib/permissions'
+import { loadProgramForViewer } from '@/lib/program-access'
 import EditProgramForm from './EditProgramForm'
 
 export async function generateMetadata({
@@ -13,16 +11,17 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const program = await getProgram(id)
-  return { title: program ? `Edit ${program.name}` : 'Edit program' }
+  const { program, allowed } = await loadProgramForViewer(id)
+  return { title: allowed && program ? `Edit ${program.name}` : 'Edit program' }
 }
 
 export default async function EditProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [program, session] = await Promise.all([getProgram(id), auth()])
+  const { program, session, allowed } = await loadProgramForViewer(id)
   if (!session) redirect('/')
-  if (!program) notFound()
-  if (!canAccessProgram(session.user?.slackId, program)) redirect('/dashboard')
+  // 404, not a redirect to the dashboard — bouncing only on programs that
+  // exist would confirm which IDs are real.
+  if (!program || !allowed) notFound()
 
   return (
     <div className="grid-bg flex min-h-screen flex-col">
