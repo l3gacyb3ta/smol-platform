@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSession, signIn, signOut } from 'next-auth/react'
-import Wordmark from './Wordmark'
 import { SpinnerIcon } from './Icons'
 
 interface NavbarProps {
@@ -14,12 +14,24 @@ export default function Navbar({ variant }: NavbarProps) {
 
   return (
     <nav className="sticky top-0 z-40 shrink-0 border-b border-gray-200/80 bg-white/85 backdrop-blur-md">
-      <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href={variant === 'admin' ? '/dashboard' : '/'}
           className="flex shrink-0 items-center gap-2.5"
         >
-          <Wordmark />
+          {/* Orpheus flag at its native 280:158 ratio — squashing it into a
+              square is what made it unreadable before. */}
+          <Image
+            src="/flag-orpheus-top.svg"
+            alt="Hack Club"
+            width={280}
+            height={158}
+            priority
+            className="h-12 w-auto sm:h-14"
+          />
+          <span className="font-display text-xl leading-none font-extrabold text-hc-dark">
+            smol
+          </span>
           {variant === 'admin' && (
             <span className="badge badge-gray ml-0.5 hidden sm:inline-flex">admin</span>
           )}

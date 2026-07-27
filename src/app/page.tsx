@@ -13,7 +13,7 @@ import { auth } from '@/auth'
 const STEPS = [
   {
     title: 'Pick a program',
-    body: 'Each smol runs for a few weeks with its own theme, its own Slack channel, and its own reward.',
+    body: 'Each smol program runs for a few weeks with its own theme, and its own reward.',
     color: '#5bc0de',
   },
   {
@@ -32,19 +32,19 @@ const PERKS = [
   {
     icon: <LightbulbIcon size={26} />,
     title: 'Learn something new',
-    body: 'A new language, a new board, a new corner of the internet. Every program is an excuse to try something you have not.',
+    body: 'A new language, a new corner of the internet. Every program is an excuse to try something you haven\'t yet!',
     color: '#5bc0de',
   },
   {
     icon: <UsersIcon size={26} />,
     title: 'Build with other people',
-    body: 'Every program gets its own Slack channel. Post progress, ask for help, watch what everyone else is making.',
+    body: 'Every program has a slack channel, and someone who cares. Post progress, ask for help, watch what everyone else is making.',
     color: '#7950f2',
   },
   {
     icon: <GiftIcon size={26} />,
     title: 'Rewards worth wanting',
-    body: 'Not another 3D printer. Each smol has a reward chosen specifically for the thing it asks you to build.',
+    body: 'Not another generic shop. Each smol has a reward chosen specifically for the thing it asks you to build.',
     color: '#ec3750',
   },
 ]

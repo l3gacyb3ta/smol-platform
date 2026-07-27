@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import Wordmark from './Wordmark'
 
 const LINKS = [
@@ -21,21 +20,6 @@ export default function Footer() {
             Tiny You Ship We Ship programs, run by teenagers at Hack Club. Build
             something, show it off, get something real in the mail.
           </p>
-          <a
-            href="https://hackclub.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-block transition-opacity hover:opacity-80"
-          >
-            {/* Native ratio is 280×158; kept wide enough for the wordmark to read. */}
-            <Image
-              src="/flag-orpheus-top.svg"
-              alt="Hack Club"
-              width={280}
-              height={158}
-              className="h-auto w-[150px]"
-            />
-          </a>
         </div>
 
         <nav className="flex flex-col gap-2.5 sm:items-end">
