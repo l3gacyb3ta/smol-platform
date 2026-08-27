@@ -1,5 +1,8 @@
 import Airtable from 'airtable'
 import type { FieldSet } from 'airtable'
+import type { Program } from './types'
+import { programIdentifiers } from './constants'
+import { escapeFormulaValue } from './airtable'
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID!
@@ -83,12 +86,29 @@ function mapRecord(record: Airtable.Record<FieldSet>): Submission {
   }
 }
 
-export async function getSubmissions(programSlackChannel: string): Promise<Submission[]> {
-  // Channel names are [a-z0-9-] so no escaping needed. Formula field
-  // references are case-insensitive, unlike the property reads above, but this
-  // matches the real field name to keep the two in step.
+/**
+ * Every submission filed against a program.
+ *
+ * Matches on both of the program's identifiers, not just its Slack channel: the
+ * submission form is prefilled by hand, and for a program whose channel and
+ * subdomain differ it may carry either. Digit — channel `digit-ysws`, subdomain
+ * `digit` — had submissions filed under `digit` and showed none of them.
+ *
+ * Compared as `LOWER(TRIM(...))` so the formula agrees with
+ * `normalizeIdentifier`, which is what the review route's program lookup uses on
+ * the same field. Formula field references are case-insensitive, unlike the
+ * property reads in `mapRecord`, but this matches the real field name to keep
+ * the two in step.
+ */
+export async function getSubmissions(program: Program): Promise<Submission[]> {
+  const identifiers = programIdentifiers(program)
+  if (identifiers.length === 0) return []
+  const clauses = identifiers.map(
+    id =>
+      `LOWER(TRIM(SUBSTITUTE({program slack channel}, '#', ''))) = '${escapeFormulaValue(id)}'`
+  )
   const records = await table()
-    .select({ filterByFormula: `{program slack channel} = '${programSlackChannel}'` })
+    .select({ filterByFormula: `OR(${clauses.join(', ')})` })
     .all()
   return records.map(mapRecord)
 }

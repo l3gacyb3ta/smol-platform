@@ -26,13 +26,14 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
 
   const slackId = session?.user?.slackId
 
-  // A program only owns its Slack channel once an admin has accepted it, and
-  // that channel is the only thing tying submissions to a program. Until then
-  // there is nothing to show and nothing we can safely attribute.
+  // A program only owns its identifiers — Slack channel and subdomain — once an
+  // admin has accepted it, and those names are the only thing tying submissions
+  // to a program. Until then there is nothing to show and nothing we can safely
+  // attribute.
   const reviewable = canAccessSubmissions(slackId, program)
 
   const admin = isAdmin(slackId)
-  const allSubmissions = reviewable ? await getSubmissions(program.slackChannel) : []
+  const allSubmissions = reviewable ? await getSubmissions(program) : []
   const submissions = admin ? allSubmissions : allSubmissions.map(stripPII)
 
   const pendingCount = submissions.filter(s => s.status === 'Pending').length

@@ -5,7 +5,7 @@ const ADMIN_SLACK_IDS = new Set(
   (process.env.ADMIN_SLACK_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean)
 )
 
-// A program only really owns its Slack channel once an admin has accepted it.
+// A program only really owns its identifiers once an admin has accepted it.
 // Anything still pending is just a self-service claim on a name.
 const VETTED_STATUSES: ReadonlySet<ProgramStatus> = new Set<ProgramStatus>([
   'accepted',
@@ -27,11 +27,12 @@ export function canAccessProgram(slackId: string | undefined, program: Program):
  * Whether someone may read or review a program's submissions.
  *
  * Stricter than `canAccessProgram` on purpose. Submissions are joined to
- * programs by a free-text Slack channel name that the *submitter* fills in, and
- * anyone with a Hack Club login can create a program claiming any channel they
- * like. Ownership of a channel is therefore only meaningful once an admin has
- * accepted the program — `status` is admin-only, so a squatter's self-created
- * program stays `pending` and authorizes nothing.
+ * programs by a free-text name that the *submitter* fills in — either of the
+ * program's identifiers, its Slack channel or its subdomain — and anyone with a
+ * Hack Club login can create a program claiming names they don't own. Ownership
+ * of an identifier is therefore only meaningful once an admin has accepted the
+ * program: `status` is admin-only, so a squatter's self-created program stays
+ * `pending` and authorizes nothing.
  */
 export function canAccessSubmissions(
   slackId: string | undefined,

@@ -3,8 +3,7 @@ import {
   getProgram,
   updateProgram,
   deleteProgram,
-  isSlackChannelTaken,
-  getProgramBySubdomain,
+  isIdentifierTaken,
 } from '@/lib/airtable'
 import { auth } from '@/auth'
 import { canAccessProgram, isAdmin } from '@/lib/permissions'
@@ -52,13 +51,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const patch = stripPrivilegedFields(body, session ?? null)
 
   // Validate identifiers after stripping, so we check what will actually be
-  // written. Renaming a channel onto another program's would make submission
+  // written. Renaming either identifier onto another program's — channel or
+  // subdomain, since a submission may name either — would make submission
   // ownership ambiguous, which is an authorization boundary.
   if (typeof patch.slackChannel === 'string') {
     if (!SLACK_CHANNEL_RE.test(patch.slackChannel)) {
       return NextResponse.json({ error: 'Invalid Slack channel' }, { status: 400 })
     }
-    if (await isSlackChannelTaken(patch.slackChannel, id)) {
+    if (await isIdentifierTaken(patch.slackChannel, id)) {
       return NextResponse.json({ error: 'That Slack channel is already taken' }, { status: 409 })
     }
   }
@@ -66,8 +66,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!SUBDOMAIN_RE.test(patch.subdomain)) {
       return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400 })
     }
-    const owner = await getProgramBySubdomain(patch.subdomain)
-    if (owner && owner.id !== id) {
+    if (await isIdentifierTaken(patch.subdomain, id)) {
       return NextResponse.json({ error: 'That subdomain is already taken' }, { status: 409 })
     }
   }

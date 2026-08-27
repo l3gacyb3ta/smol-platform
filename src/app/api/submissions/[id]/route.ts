@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getProgramBySlackChannel } from '@/lib/airtable'
+import { getProgramByIdentifier } from '@/lib/airtable'
 import { canAccessSubmissions } from '@/lib/permissions'
 import { getSubmission, reviewSubmission } from '@/lib/airtable-submissions'
 
@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const submission = await getSubmission(id)
   if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const program = await getProgramBySlackChannel(submission.programSlackChannel)
+  const program = await getProgramByIdentifier(submission.programSlackChannel)
   if (!program || !canAccessSubmissions(session.user.slackId, program)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
