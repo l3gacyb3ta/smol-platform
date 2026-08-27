@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProgramBySubdomain } from '@/lib/airtable'
+import { isIdentifierTaken } from '@/lib/airtable'
 import { auth } from '@/auth'
 
 // Subdomain availability check for the New Program form. The subdomain becomes
-// the repo name (`smol-{subdomain}`) and the DNS record, so it must be unique.
+// the repo name (`smol-{subdomain}`) and the DNS record, so it must be unique —
+// and unique against Slack channels too, since a submission may name a program
+// by either identifier. Asks the same question POST /api/programs does, so the
+// form can't call a value available that creation then rejects.
 const SUBDOMAIN_RE = /^[a-z0-9-]{1,63}$/
 
 export async function GET(req: NextRequest) {
@@ -19,6 +22,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ available: false, reason: 'invalid' })
   }
 
-  const existing = await getProgramBySubdomain(subdomain)
-  return NextResponse.json({ available: !existing })
+  return NextResponse.json({ available: !(await isIdentifierTaken(subdomain)) })
 }

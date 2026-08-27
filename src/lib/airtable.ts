@@ -1,6 +1,7 @@
 import Airtable from 'airtable'
 import type { FieldSet } from 'airtable'
 import type { Program, CreateProgramInput, ProgramStatus } from './types'
+import { normalizeIdentifier } from './constants'
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID!
@@ -118,52 +119,70 @@ export async function deleteProgram(id: string): Promise<void> {
  * backstop for values that arrive from outside (submission form fields), and it
  * also stops a legitimate apostrophe from breaking the query.
  */
-function escapeFormulaValue(value: string): string {
+export function escapeFormulaValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
 /**
- * Resolves the program that owns a Slack channel.
+ * Formula matching `value` against either program identifier.
  *
- * Refuses to answer when the channel is ambiguous. Airtable enforces no
- * uniqueness on `Slack Channel`, and this lookup decides who may review a
- * submission — handing back an arbitrary `records[0]` would let whoever
- * happened to sort first authorize against someone else's submissions.
+ * Compares against `LOWER(TRIM(...))` rather than the raw column so the
+ * comparison means the same thing as `normalizeIdentifier` does on the other
+ * side of the join. Airtable's `=` is case-insensitive for text today, but that
+ * is not something worth relying on for an authorization boundary.
  */
-export async function getProgramBySlackChannel(channel: string): Promise<Program | null> {
-  if (!channel) return null
+function identifierMatch(value: string): string {
+  const v = escapeFormulaValue(normalizeIdentifier(value))
+  return `OR(LOWER(TRIM({Slack Channel})) = '${v}', LOWER(TRIM({Subdomain})) = '${v}')`
+}
+
+/**
+ * Resolves the program a submission's identifier refers to — its Slack channel
+ * or its subdomain, since a submission may name either. See
+ * `programIdentifiers`.
+ *
+ * Refuses to answer when the identifier is ambiguous. Airtable enforces no
+ * uniqueness of its own, and this lookup decides who may review a submission —
+ * handing back an arbitrary `records[0]` would let whoever happened to sort
+ * first authorize against someone else's submissions. `isIdentifierTaken` keeps
+ * the two columns to one namespace so a legitimate identifier resolves to
+ * exactly one program; the check here is the backstop for rows that predate it
+ * or were edited in Airtable directly.
+ */
+export async function getProgramByIdentifier(identifier: string): Promise<Program | null> {
+  if (!normalizeIdentifier(identifier)) return null
   const records = await table()
     .select({
-      filterByFormula: `AND({Slack Channel} = '${escapeFormulaValue(channel)}', NOT({Status} = 'deleted'))`,
+      filterByFormula: `AND(${identifierMatch(identifier)}, NOT({Status} = 'deleted'))`,
       maxRecords: 2,
     })
     .firstPage()
   if (records.length !== 1) {
     if (records.length > 1) {
-      console.error(`Ambiguous Slack channel "${channel}" — ${records.length} programs claim it`)
+      console.error(
+        `Ambiguous program identifier "${identifier}" — ${records.length} programs claim it`
+      )
     }
     return null
   }
   return mapRecord(records[0])
 }
 
-export async function getProgramBySubdomain(subdomain: string): Promise<Program | null> {
-  const records = await table()
-    .select({
-      filterByFormula: `AND({Subdomain} = '${escapeFormulaValue(subdomain)}', NOT({Status} = 'deleted'))`,
-    })
-    .firstPage()
-  return records[0] ? mapRecord(records[0]) : null
-}
-
 /**
- * Whether a non-deleted program other than `exceptId` already claims a channel.
- * Keeps `Slack Channel` unique, which Airtable itself will not do.
+ * Whether a non-deleted program other than `exceptId` already claims `value` as
+ * either its Slack channel or its subdomain.
+ *
+ * One namespace for both columns, which Airtable itself will not enforce.
+ * Deliberately stricter than checking each column against itself: a submission
+ * may name a program by either identifier, so letting one program's subdomain
+ * equal another's channel would make submission ownership — an authorization
+ * boundary — ambiguous.
  */
-export async function isSlackChannelTaken(channel: string, exceptId?: string): Promise<boolean> {
+export async function isIdentifierTaken(value: string, exceptId?: string): Promise<boolean> {
+  if (!normalizeIdentifier(value)) return false
   const records = await table()
     .select({
-      filterByFormula: `AND({Slack Channel} = '${escapeFormulaValue(channel)}', NOT({Status} = 'deleted'))`,
+      filterByFormula: `AND(${identifierMatch(value)}, NOT({Status} = 'deleted'))`,
     })
     .firstPage()
   return records.some(r => r.id !== exceptId)

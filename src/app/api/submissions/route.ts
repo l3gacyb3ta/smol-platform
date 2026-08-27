@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const submissions = await getSubmissions(program.slackChannel)
+  const submissions = await getSubmissions(program)
   const admin = isAdmin(session.user.slackId)
   const filtered = admin ? submissions : submissions.map(stripPII)
 

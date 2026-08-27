@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   getPrograms,
   createProgram,
-  isSlackChannelTaken,
-  getProgramBySubdomain,
+  isIdentifierTaken,
 } from '@/lib/airtable'
 import { auth } from '@/auth'
 import { isAdmin } from '@/lib/permissions'
@@ -49,12 +48,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Both identify the program to other systems, and the Slack channel is what
-  // binds a submission to its program — so neither may be claimed twice.
-  if (await isSlackChannelTaken(body.slackChannel)) {
+  // Both identify the program to other systems, and either one may be what
+  // binds a submission to its program — so neither may be claimed twice, and
+  // neither may collide with the *other* identifier of an existing program.
+  if (await isIdentifierTaken(body.slackChannel)) {
     return NextResponse.json({ error: 'That Slack channel is already taken' }, { status: 409 })
   }
-  if (await getProgramBySubdomain(body.subdomain)) {
+  if (await isIdentifierTaken(body.subdomain)) {
     return NextResponse.json({ error: 'That subdomain is already taken' }, { status: 409 })
   }
 
