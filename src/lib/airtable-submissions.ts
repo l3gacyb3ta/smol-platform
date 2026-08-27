@@ -104,7 +104,8 @@ export async function getSubmissions(program: Program): Promise<Submission[]> {
   const identifiers = programIdentifiers(program)
   if (identifiers.length === 0) return []
   const clauses = identifiers.map(
-    id => `LOWER(TRIM({program slack channel})) = '${escapeFormulaValue(id)}'`
+    id =>
+      `LOWER(TRIM(SUBSTITUTE({program slack channel}, '#', ''))) = '${escapeFormulaValue(id)}'`
   )
   const records = await table()
     .select({ filterByFormula: `OR(${clauses.join(', ')})` })
