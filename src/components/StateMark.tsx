@@ -29,6 +29,7 @@ const PROGRAM_STATE: Record<ProgramStatus, { label: string; tone: Tone }> = {
 const SUBMISSION_STATE: Record<SubmissionStatus, { label: string; tone: Tone }> = {
   Accepted: { label: 'approved', tone: 'clear' },
   'Sent to Unified': { label: 'approved · sent', tone: 'clear' },
+  'Sent to Ari': { label: 'with Ari', tone: 'hold' },
   Rejected: { label: 'rejected', tone: 'void' },
   Pending: { label: 'needs review', tone: 'attention' },
 }

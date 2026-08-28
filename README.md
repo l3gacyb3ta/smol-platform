@@ -39,6 +39,11 @@ Every value lives in `.env.local`; see `.env.example` for the full list.
 | `AIRTABLE_API_KEY` / `AIRTABLE_BASE_ID` | Airtable is the datastore |
 | `AIRTABLE_TABLE_NAME` | Programs table, defaults to `Programs` |
 | `AIRTABLE_SUBMISSIONS_TABLE` | Submissions table, defaults to `Submissions` |
+| `AIRTABLE_ARI_DELIVERIES_TABLE` | Durable Ari delivery-ID table, defaults to `Ari Deliveries` |
+| `ARI_PROGRAM_ID` | The single Ari program that reviews platform submissions |
+| `ARI_INGEST_SECRET` | Ari inbound signing secret used to send ships |
+| `ARI_WEBHOOK_SECRET` | Separate Ari outbound signing secret used to verify decisions |
+| `ARI_BASE_URL` | Optional Ari endpoint override; defaults to `https://webhooks.ari.hackclub.com` |
 | `SLACK_BOT_TOKEN` | Bot token with `channels:manage` for creating/archiving channels |
 | `SLACK_CHANNEL_CREATION` | Set to `enabled` to let spin-up create real channels. Off by default — see below |
 | `GITHUB_TOKEN` | Fine-grained PAT that can generate repos in the `hackclub-smol` org |
@@ -81,9 +86,31 @@ Every value lives in `.env.local`; see `.env.example` for the full list.
 
 4. **Live** — an Airtable automation flips the program to `active` on its start
    date, which is when it appears on the public homepage.
-5. **Submissions** — entries arrive in the Submissions table and get reviewed at
-   `/programs/[id]/submissions`. Reviewers can approve, reject, or approve with an
-   adjusted hour count. Contact details are stripped for non-admins.
+5. **Submissions** — entries arrive in the Submissions table and are sent to Ari from
+   `/programs/[id]/submissions`. Ari is the review authority: its signed decisions
+   update Airtable back to approved, changes requested, or rejected. Contact details
+   are stripped for non-admins.
+
+## Ari reviews
+
+Ari is configured for one platform-wide Ari program in this branch. In Ari Settings →
+Webhooks, set the outbound destination to `https://<your-host>/api/webhooks/ari` and
+copy its outbound secret to `ARI_WEBHOOK_SECRET`; this is distinct from the ingest
+secret the platform uses to send ships.
+
+Before enabling the action, add these fields to the **Submissions** Airtable table:
+`Project Title`, `Slack ID`, `Ari Ship ID`, `Ari Version`, `Ari Phase`, `Ari Decision`,
+`Ari Submitted At`, `Ari Last Event At`, `Ari Review Minutes`, and `Ari Review Note`.
+Also create an **Ari Deliveries** table with `Delivery ID`, `Ship ID`, `External ID`,
+`Event`, and `Received At`. Delivery IDs are recorded so retries cannot apply a review
+more than once.
+
+`Send to Ari` requires an email, canonical Slack user ID, project title, description,
+public GitHub repository URL, demo URL, screenshot, and a Hackatime project key (or
+legacy Hackatime project URL). The platform sends the Airtable record ID as Ari's
+`external_id`; it never sends shipping address, phone, birthday, or internal notes.
+Ari webhook signatures are checked against the raw request bytes, a five-minute
+replay window, and a durable delivery record before any review state is changed.
 
 ### Two things to know before trusting the spin-up screen
 

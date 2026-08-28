@@ -3,13 +3,14 @@ import type { FieldSet } from 'airtable'
 import type { Program } from './types'
 import { programIdentifiers } from './constants'
 import { escapeFormulaValue } from './airtable'
+import type { AriDecision } from './ari'
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID!
 )
 const table = () => base(process.env.AIRTABLE_SUBMISSIONS_TABLE ?? 'Submissions')
 
-export type SubmissionStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Sent to Unified'
+export type SubmissionStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Sent to Unified' | 'Sent to Ari'
 
 export interface Submission {
   id: string
@@ -17,7 +18,9 @@ export interface Submission {
   programSlackChannel: string
   firstName: string
   lastName: string
+  projectTitle?: string
   slackUsername?: string
+  slackId?: string
   githubUsername?: string
   description?: string
   playableUrl?: string
@@ -25,6 +28,14 @@ export interface Submission {
   hackatimeProject?: string
   adjustedHours?: number
   screenshot?: Array<{ url: string; filename: string }>
+  ariShipId?: string
+  ariVersion?: number
+  ariPhase?: string
+  ariDecision?: AriDecision
+  ariSubmittedAt?: string
+  ariLastEventAt?: string
+  ariReviewMinutes?: number
+  ariReviewNote?: string
   // PII — stripped for non-admins
   email?: string
   birthday?: string
@@ -38,7 +49,7 @@ export interface Submission {
 }
 
 const PII_KEYS: Array<keyof Submission> = [
-  'email', 'birthday', 'phoneNumber',
+  'email', 'birthday', 'phoneNumber', 'slackId', 'ariReviewNote',
   'addressLine1', 'addressLine2', 'city', 'zip', 'state', 'country',
 ]
 
@@ -52,17 +63,18 @@ type AttachmentField = Array<{ url: string; filename: string }>
 
 function mapRecord(record: Airtable.Record<FieldSet>): Submission {
   const f = record.fields
+  const decision = f['Ari Decision'] as string | undefined
   return {
     id: record.id,
     status: ((f['Status'] as string) ?? 'Pending') as SubmissionStatus,
     // Lowercase on purpose: the Airtable field really is named "program slack
-    // channel". Reading fields is a plain property access, so it's
-    // case-sensitive — title-casing this silently yields '' and every review
-    // then 403s, because the program lookup in the review route finds nothing.
+    // channel". Reading fields is case-sensitive.
     programSlackChannel: (f['program slack channel'] as string) ?? '',
     firstName: (f['First Name'] as string) ?? '',
     lastName: (f['Last Name'] as string) ?? '',
+    projectTitle: (f['Project Title'] as string) || undefined,
     slackUsername: (f['Slack Username'] as string) || undefined,
+    slackId: (f['Slack ID'] as string) || undefined,
     githubUsername: (f['Github Username'] as string) || undefined,
     description: (f['Description'] as string) || undefined,
     playableUrl: (f['Playable URL'] as string) || undefined,
@@ -73,6 +85,16 @@ function mapRecord(record: Airtable.Record<FieldSet>): Submission {
       url: a.url,
       filename: a.filename,
     })),
+    ariShipId: (f['Ari Ship ID'] as string) || undefined,
+    ariVersion: (f['Ari Version'] as number) ?? undefined,
+    ariPhase: (f['Ari Phase'] as string) || undefined,
+    ariDecision: decision === 'approved' || decision === 'changes' || decision === 'rejected'
+      ? decision
+      : undefined,
+    ariSubmittedAt: (f['Ari Submitted At'] as string) || undefined,
+    ariLastEventAt: (f['Ari Last Event At'] as string) || undefined,
+    ariReviewMinutes: (f['Ari Review Minutes'] as number) ?? undefined,
+    ariReviewNote: (f['Ari Review Note'] as string) || undefined,
     // PII
     email: (f['Email'] as string) || undefined,
     birthday: (f['Birthday'] as string) || undefined,
@@ -86,50 +108,47 @@ function mapRecord(record: Airtable.Record<FieldSet>): Submission {
   }
 }
 
-/**
- * Every submission filed against a program.
- *
- * Matches on both of the program's identifiers, not just its Slack channel: the
- * submission form is prefilled by hand, and for a program whose channel and
- * subdomain differ it may carry either. Digit — channel `digit-ysws`, subdomain
- * `digit` — had submissions filed under `digit` and showed none of them.
- *
- * Compared as `LOWER(TRIM(...))` so the formula agrees with
- * `normalizeIdentifier`, which is what the review route's program lookup uses on
- * the same field. Formula field references are case-insensitive, unlike the
- * property reads in `mapRecord`, but this matches the real field name to keep
- * the two in step.
- */
 export async function getSubmissions(program: Program): Promise<Submission[]> {
   const identifiers = programIdentifiers(program)
   if (identifiers.length === 0) return []
   const clauses = identifiers.map(
-    id =>
-      `LOWER(TRIM(SUBSTITUTE({program slack channel}, '#', ''))) = '${escapeFormulaValue(id)}'`
+    id => `LOWER(TRIM(SUBSTITUTE({program slack channel}, '#', ''))) = '${escapeFormulaValue(id)}'`
   )
-  const records = await table()
-    .select({ filterByFormula: `OR(${clauses.join(', ')})` })
-    .all()
+  const records = await table().select({ filterByFormula: `OR(${clauses.join(', ')})` }).all()
   return records.map(mapRecord)
 }
 
 export async function getSubmission(id: string): Promise<Submission | null> {
   try {
-    const record = await table().find(id)
-    return mapRecord(record)
+    return mapRecord(await table().find(id))
   } catch {
     return null
   }
 }
 
-export async function reviewSubmission(
-  id: string,
-  action: 'accept' | 'reject',
-  adjustedHours?: number,
-): Promise<Submission> {
-  const status: SubmissionStatus = action === 'accept' ? 'Accepted' : 'Rejected'
-  const fields: FieldSet = { Status: status }
-  if (adjustedHours !== undefined) fields['Adjusted Hours'] = adjustedHours
-  const record = await table().update(id, fields)
-  return mapRecord(record)
+export interface AriSubmissionUpdate {
+  status?: SubmissionStatus
+  shipId?: string
+  version?: number
+  phase?: string
+  decision?: AriDecision | null
+  submittedAt?: string
+  lastEventAt?: string
+  reviewMinutes?: number | null
+  reviewNote?: string | null
+}
+
+/** Updates only the local projection of Ari's review state. */
+export async function updateAriSubmission(id: string, update: AriSubmissionUpdate): Promise<Submission> {
+  const fields: FieldSet = {}
+  if (update.status !== undefined) fields['Status'] = update.status
+  if (update.shipId !== undefined) fields['Ari Ship ID'] = update.shipId
+  if (update.version !== undefined) fields['Ari Version'] = update.version
+  if (update.phase !== undefined) fields['Ari Phase'] = update.phase
+  if ('decision' in update) fields['Ari Decision'] = update.decision ?? ''
+  if (update.submittedAt !== undefined) fields['Ari Submitted At'] = update.submittedAt
+  if (update.lastEventAt !== undefined) fields['Ari Last Event At'] = update.lastEventAt
+  if ('reviewMinutes' in update) fields['Ari Review Minutes'] = update.reviewMinutes ?? (null as never)
+  if ('reviewNote' in update) fields['Ari Review Note'] = update.reviewNote ?? ''
+  return mapRecord(await table().update(id, fields))
 }
