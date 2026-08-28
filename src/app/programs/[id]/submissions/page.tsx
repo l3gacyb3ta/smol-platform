@@ -36,7 +36,7 @@ export default async function SubmissionsPage({ params }: { params: Promise<{ id
   const allSubmissions = reviewable ? await getSubmissions(program) : []
   const submissions = admin ? allSubmissions : allSubmissions.map(stripPII)
 
-  const pendingCount = submissions.filter(s => s.status === 'Pending').length
+  const pendingCount = submissions.filter(s => s.status === 'Pending' && !s.ariShipId).length
   const when = countdown(program.startDate, program.endDate)
 
   return (
